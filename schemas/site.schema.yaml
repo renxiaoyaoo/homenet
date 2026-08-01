@@ -1,0 +1,87 @@
+schema: homenet.site.v1
+description: Deployment-level intent for a HomeNet instance.
+required:
+  - site
+  - runtime
+  - networks
+fields:
+  site:
+    required: [name]
+    fields:
+      name: string
+      display_name: string
+      domain: string
+      locale: string
+      timezone: string
+  runtime:
+    required: [router]
+    fields:
+      router:
+        required: [type, host]
+        fields:
+          type: enum(openwrt)
+          host: ipv4
+          user: string
+      server:
+        fields:
+          enabled: bool_or_auto
+          preferred: enum(pi, mini-pc, openwrt, external, auto)
+          host: ipv4
+          role: string
+  networks:
+    description: Logical home networks. CIDRs may be customized per instance.
+    pattern_fields:
+      "*":
+        required: [cidr]
+        fields:
+          enabled: bool
+          cidr: cidr
+          gateway: ipv4
+          dhcp: string
+          purpose: string
+          dns_mode: enum(home, public, router, external, none)
+          proxy_mode: enum(transparent, direct, bypass, none)
+  wifi:
+    description: SSID metadata only. Passwords belong in secrets, never here.
+    pattern_fields:
+      "*":
+        required: [ssid, network]
+        fields:
+          ssid: string
+          network: string
+          band: string
+          purpose: string
+          broadcast_by: list_string
+  remote_ingress:
+    description: External entry points such as Cloudflare Access, Cloudflare Tunnel, IPv6 direct HTTPS, and WireGuard UDP.
+    type: list
+    item:
+      required: [id, name, kind]
+      fields:
+        id: string
+        name: string
+        kind: enum(cloudflare-access, cloudflare-tunnel, ipv6-direct, wireguard-udp, external)
+        href: url
+        target: string
+        service_id: string
+        status_source: enum(kuma, wireguard, cloudflare, static)
+  modules:
+    description: Pluggable HomeNet capability intent.
+    pattern_fields:
+      "*":
+        fields:
+          enabled: bool_or_auto
+          runtime: string
+          implementation: string
+          fallback: string
+          reason: string
+          methods: list_string
+  features:
+    pattern_fields:
+      "*":
+        fields:
+          enabled: bool_or_auto
+          implementation: string
+          runtime: string
+          level: string
+          methods: list_string

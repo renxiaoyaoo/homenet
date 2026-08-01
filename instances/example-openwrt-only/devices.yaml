@@ -1,0 +1,23 @@
+schema: homenet.devices.v1
+
+devices:
+  - id: openwrt-gateway
+    name: OpenWrt Gateway
+    role: Router / Gateway / DHCP / Firewall / Wi-Fi / DNS / Proxy
+    network: lan
+    ip: 192.168.90.1
+    expected: true
+
+  - id: laptop
+    name: Example Laptop
+    role: Daily client
+    network: lan
+    ip: 192.168.90.30
+    expected: true
+
+  - id: phone
+    name: Example Phone
+    role: Daily client
+    network: lan
+    ip: 192.168.90.60
+    expected: true

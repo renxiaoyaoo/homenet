@@ -1,0 +1,175 @@
+schema: homenet.module_renderers.v1
+version: 0.1.0
+source: modules/renderers.yaml
+renderer_count: 27
+principles:
+  - Renderer contracts are owned by modules, not by deployment instances.
+  - Renderer contracts describe review/apply readiness only; they do not contain rendered config values.
+  - Review renderers may be complete for operator review while still not deployable.
+  - Deployable renderers require backup, source-tool ownership, live verification, rollback, and write-side gates.
+defaults:
+  status: rendered-review-artifact
+  complete_for_review: true
+  deployable: false
+modules:
+  gateway-openwrt:
+    renderers:
+      - id: gateway-network-inventory
+        artifact: gateway-openwrt.network
+        kind: uci-review-inventory
+        target: openwrt
+        privacy: no secrets
+      - id: gateway-dhcp-inventory
+        artifact: gateway-openwrt.dhcp
+        kind: uci-review-inventory
+        target: openwrt
+        privacy: no secrets
+      - id: gateway-firewall-inventory
+        artifact: gateway-openwrt.firewall
+        kind: uci-review-inventory
+        target: openwrt
+        privacy: no secrets
+      - id: gateway-wireless-inventory
+        artifact: gateway-openwrt.wireless
+        kind: uci-review-inventory
+        target: openwrt
+        privacy: no secrets
+
+  dns-layer:
+    renderers:
+      - id: adguard-domestic-upstreams
+        artifact: dns-layer.domestic-upstreams
+        kind: generated-config-fragment
+        target: server-runtime
+        privacy: no secrets
+      - id: adguard-config-inventory
+        artifact: dns-layer.adguard
+        kind: service-config-inventory
+        target: server-runtime
+        privacy: no secrets
+      - id: dns-router-forwarding-inventory
+        artifact: dns-layer.router-forwarding
+        kind: uci-review-inventory
+        target: openwrt
+        privacy: no secrets
+
+  proxy-mihomo:
+    renderers:
+      - id: mihomo-config-inventory
+        artifact: proxy-mihomo.mihomo-config
+        kind: service-config-inventory
+        target: server-runtime
+        privacy: secret names only
+      - id: mihomo-tproxy-policy-inventory
+        artifact: proxy-mihomo.tproxy-policy
+        kind: route-policy-inventory
+        target: openwrt
+        privacy: no secrets
+      - id: mihomo-update-unit-inventory
+        artifact: proxy-mihomo.update-unit
+        kind: systemd-units-inventory
+        target: server-runtime
+        privacy: no secrets
+
+  remote-access:
+    renderers:
+      - id: wireguard-remote-access
+        artifact: remote-access.wireguard
+        kind: remote-ingress-inventory
+        target: server-runtime
+        privacy: secret names only
+      - id: cloudflared-remote-ingress
+        artifact: remote-access.cloudflared
+        kind: remote-ingress-inventory
+        target: server-runtime
+        privacy: secret names only
+      - id: caddy-remote-ingress
+        artifact: remote-access.caddy
+        kind: remote-ingress-inventory
+        target: server-runtime
+        privacy: no secrets
+      - id: ddns-remote-ingress
+        artifact: remote-access.ddns
+        kind: remote-ingress-inventory
+        target: server-runtime
+        privacy: secret names only
+
+  observability-homenet:
+    renderers:
+      - id: homenet-ops-runtime-inventory
+        artifact: observability-homenet.ops-compose
+        kind: runtime-config-inventory
+        target: server-runtime
+        privacy: no secrets
+      - id: kuma-import-plan-review
+        artifact: observability-homenet.kuma-import-plan
+        kind: kuma-import-review-inventory
+        target: server-runtime
+        privacy: no secrets
+
+  smart-home:
+    renderers:
+      - id: home-assistant-config-inventory
+        artifact: smart-home.home-assistant
+        kind: service-config-inventory
+        target: server-runtime
+        privacy: secret names only
+      - id: mosquitto-config-inventory
+        artifact: smart-home.mosquitto
+        kind: service-config-inventory
+        target: server-runtime
+        privacy: secret names only
+      - id: zigbee2mqtt-config-inventory
+        artifact: smart-home.zigbee2mqtt
+        kind: service-config-inventory
+        target: server-runtime
+        privacy: secret names only
+
+  maintenance-wifi:
+    renderers:
+      - id: maintenance-network-inventory
+        artifact: maintenance-wifi.maintenance-network
+        kind: uci-review-inventory
+        target: openwrt
+        privacy: no secrets
+      - id: maintenance-wireless-inventory
+        artifact: maintenance-wifi.maintenance-wireless
+        kind: uci-review-inventory
+        target: openwrt
+        privacy: no secrets
+      - id: maintenance-firewall-inventory
+        artifact: maintenance-wifi.maintenance-firewall
+        kind: uci-review-inventory
+        target: openwrt
+        privacy: no secrets
+
+  server-runtime:
+    renderers:
+      - id: docker-compose-inventory
+        artifact: server-runtime.docker-compose
+        kind: runtime-config-fragment
+        target: server-runtime
+        privacy: no env values
+      - id: systemd-units-inventory
+        artifact: server-runtime.systemd-units
+        kind: systemd-units-inventory
+        target: server-runtime
+        privacy: no secrets
+
+  room-ap:
+    renderers:
+      - id: room-network-inventory
+        artifact: room-ap.room-network
+        kind: uci-review-inventory
+        target: room-ap
+        privacy: no secrets
+      - id: room-wireless-inventory
+        artifact: room-ap.room-wireless
+        kind: uci-review-inventory
+        target: room-ap
+        privacy: no secrets
+      - id: room-firewall-inventory
+        artifact: room-ap.room-firewall
+        kind: uci-review-inventory
+        target: room-ap
+        privacy: no secrets

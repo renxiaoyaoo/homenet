@@ -1,0 +1,41 @@
+# Local secrets and operator state
+/.env
+/.homenet-privacy-denylist
+/.agents/
+/.codex/
+
+# Runtime data and private service configuration
+/home-network-architecture-maintenance.md
+/docker-compose.yml
+/instances/*
+!/instances/example-openwrt-only/
+!/instances/example-openwrt-pi/
+/adguard/
+/backups/
+/caddy/
+/cloudflared/
+/ddns-go/
+/wg-easy/
+/maintenance/state/
+/maintenance/backups/
+/maintenance/mihomo/mihomo-update.env
+/runtime/
+/ops
+/ops-runtime-leftover/
+
+# Mihomo runtime data, subscriptions, cache, generated rules, and downloaded UI/data
+/mihomo/
+
+# Workspace projects with their own repositories
+/homenet-console/
+/sub/
+
+# App build/cache output
+/apps/ops/frontend/node_modules/
+/apps/ops/frontend/dist/
+/apps/ops/static/
+/apps/ops/__pycache__/
+
+# Python and local build output
+__pycache__/
+*.pyc

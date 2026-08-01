@@ -1,0 +1,100 @@
+# Public HomeNet compose template.
+# This file is a starting point, not a captured live deployment.
+# Copy it into a private deployment directory and fill env.example locally.
+
+services:
+  homenet-ops:
+    image: ${HOMENET_OPS_IMAGE:-homenet-ops:latest}
+    container_name: homenet-ops
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      HOMENET_INSTANCE: ${HOMENET_INSTANCE:-instances/example-openwrt-pi}
+      HOMENET_NETWORK_ROOT: ${HOMENET_NETWORK_ROOT:-/opt/homenet}
+      TZ: ${HOMENET_TIMEZONE:-UTC}
+      PORT: ${HOMENET_OPS_PORT:-9999}
+    volumes:
+      - ${HOMENET_NETWORK_ROOT:-/opt/homenet}:/workspace/homenet:ro
+
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: ${HOMENET_TIMEZONE:-UTC}
+    volumes:
+      - ./adguard/work:/opt/adguardhome/work
+      - ./adguard/conf:/opt/adguardhome/conf
+
+  mihomo:
+    image: metacubex/mihomo:latest
+    container_name: mihomo
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      TZ: ${HOMENET_TIMEZONE:-UTC}
+    volumes:
+      - ./mihomo:/root/.config/mihomo
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: ${HOMENET_TIMEZONE:-UTC}
+    volumes:
+      - ./uptime-kuma:/app/data
+      - /run/docker.sock:/var/run/docker.sock
+
+  wg-easy:
+    image: ghcr.io/wg-easy/wg-easy:15.3.0
+    container_name: wg-easy
+    restart: unless-stopped
+    environment:
+      WG_HOST: ${WG_HOST:-vpn.example.net}
+      PASSWORD_HASH: ${WG_EASY_PASSWORD_HASH:-REPLACE_WITH_WG_EASY_PASSWORD_HASH}
+      INSECURE: ${WG_EASY_INSECURE:-false}
+    volumes:
+      - ./wg-easy/data:/etc/wireguard
+      - /lib/modules:/lib/modules:ro
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:-REPLACE_WITH_CLOUDFLARED_TUNNEL_TOKEN}
+    network_mode: host
+    environment:
+      TUNNEL_LOGLEVEL: ${CLOUDFLARED_LOGLEVEL:-info}
+
+  caddy:
+    image: slothcroissant/caddy-cloudflaredns:latest
+    container_name: caddy
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: ${HOMENET_TIMEZONE:-UTC}
+      CLOUDFLARE_API_TOKEN: ${CF_DNS_API_TOKEN:-REPLACE_WITH_CF_DNS_API_TOKEN}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+
+  ddns-go:
+    image: jeessy/ddns-go:latest
+    container_name: ddns-go
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: ${HOMENET_TIMEZONE:-UTC}
+    volumes:
+      - ./ddns-go:/root

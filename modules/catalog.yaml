@@ -1,0 +1,378 @@
+schema: homenet.module_definitions.v1
+version: 0.1.0
+module_count: 9
+principles:
+  - A module is a bounded capability with inputs, generated outputs, checks, rollback, and source-tool boundaries.
+  - OpenWrt-only, OpenWrt plus Pi, mini PC, NAS, and external-service deployments use the same module IDs.
+  - Hardware changes placement, performance, and history depth; it should not change the operator mental model.
+  - Advanced modules must be optional, provide a lower-cost fallback, or be explicitly marked as required.
+  - HomeNet review surfaces do not own live configuration until module-specific apply gates are implemented and enabled.
+modules:
+  - id: gateway-openwrt
+    title: OpenWrt Gateway
+    required: true
+    runtimes:
+      - openwrt
+    profile_support:
+      openwrt-only: full
+      openwrt-pi: full
+      openwrt-mini-pc: full
+    fallback: none
+    description: Gateway, DHCP, firewall, Wi-Fi, VLAN, and management boundaries remain on OpenWrt.
+    ownership: OpenWrt is the source tool for live network state; HomeNet renders intent, review artifacts, checks, and rollback contracts.
+    module_boundary: Routing, DHCP, firewall, Wi-Fi, LAN/IoT/Guest/Maintenance boundaries, and router maintenance access.
+    source_tools:
+      - OpenWrt UCI
+      - LuCI
+      - SSH
+    surfaces:
+      inputs:
+        - network CIDRs
+        - SSID layout
+        - DHCP/static lease policy
+        - management access
+      outputs:
+        - network/dhcp/firewall/wireless intent
+        - LAN/IoT/Guest/Maintenance boundaries
+        - maintenance entries
+      checks:
+        - router SSH/LuCI reachable
+        - DHCP leases match declared devices
+        - maintenance network can reach required entries
+      rollback:
+        - /etc/config/network
+        - /etc/config/dhcp
+        - /etc/config/firewall
+        - /etc/config/wireless
+    apply_policy: review-only until OpenWrt backup, diff, apply, and post-change evidence gates are enabled.
+
+  - id: dns-layer
+    title: DNS Layer
+    required: true
+    runtimes:
+      - server:adguard
+      - openwrt:dnsmasq
+      - openwrt:mosdns
+      - external
+    profile_support:
+      openwrt-only: lightweight
+      openwrt-pi: full
+      openwrt-mini-pc: full
+    fallback: openwrt:dnsmasq or mosdns
+    description: Local names, split DNS, domestic/direct DNS policy, and foreign/proxy DNS policy.
+    ownership: AdGuard, dnsmasq, mosdns, or an external resolver remains the source tool; HomeNet explains and checks the contract.
+    module_boundary: DNS listeners, upstream policy, local zones, and DNS handoff from OpenWrt clients.
+    source_tools:
+      - AdGuard Home
+      - OpenWrt dnsmasq
+      - mosdns
+    surfaces:
+      inputs:
+        - DNS implementation
+        - network dns_mode values
+        - local zones
+        - domestic/foreign upstream policy
+      outputs:
+        - split DNS forwarding intent
+        - domestic upstream rules
+        - home DNS handoff
+        - local zone resolution
+      checks:
+        - domestic domain resolves directly
+        - foreign domain follows proxy DNS path
+        - DNS listener reachable
+      rollback:
+        - DNS service config
+        - generated upstream rules
+        - OpenWrt dnsmasq forwarding options
+    apply_policy: review-only until per-implementation backup and reload gates exist.
+
+  - id: proxy-mihomo
+    title: Mihomo Proxy
+    required: true
+    runtimes:
+      - server:mihomo
+      - openwrt:mihomo
+      - external
+    profile_support:
+      openwrt-only: hardware-dependent
+      openwrt-pi: full
+      openwrt-mini-pc: full
+    fallback: explicit proxy only or OpenWrt-local Mihomo if hardware allows
+    description: Transparent proxy, explicit proxy endpoint, route policy, proxy groups, and rule provider intent.
+    ownership: Mihomo and OpenWrt routing/firewall rules are source tools; HomeNet renders reviewable policy and evidence.
+    module_boundary: Proxy controller, provider inputs, proxy groups, fake-DNS/TProxy policy, and direct/proxy route split.
+    source_tools:
+      - Mihomo
+      - OpenWrt firewall
+      - systemd
+    surfaces:
+      inputs:
+        - Mihomo implementation
+        - proxy subscription/provider secret names
+        - transparent proxy policy
+        - LAN bypass/direct rules
+      outputs:
+        - Mihomo config skeleton
+        - proxy group/rule intent
+        - explicit proxy endpoint
+        - TProxy/fake-DNS route policy
+      checks:
+        - controller API reachable
+        - proxy groups healthy
+        - domestic traffic bypasses
+        - foreign traffic proxies
+      rollback:
+        - Mihomo config
+        - provider cache
+        - OpenWrt firewall mark/routing rules
+        - proxy systemd units
+    apply_policy: review-only until secrets, provider updates, config tests, service restart, and route evidence are gated.
+
+  - id: remote-access
+    title: Remote Access
+    required: false
+    runtimes:
+      - server:wireguard+cloudflared+caddy
+      - openwrt:wireguard
+      - cloudflare-tunnel
+    profile_support:
+      openwrt-only: partial
+      openwrt-pi: full
+      openwrt-mini-pc: full
+    fallback: WireGuard on OpenWrt or HTTPS-only Cloudflare Tunnel
+    description: Outside-home access through LAN-level WireGuard and selected protected HTTPS entries.
+    ownership: WireGuard, Cloudflare Tunnel/Access, Caddy, and DDNS remain source tools; HomeNet keeps the inventory and checks paired.
+    module_boundary: Return-to-LAN peers, remote HTTPS entries, tunnel hostnames, DDNS ownership, and external access checks.
+    source_tools:
+      - WireGuard
+      - Cloudflare Tunnel
+      - Cloudflare Access
+      - Caddy
+      - DDNS
+    surfaces:
+      inputs:
+        - remote access methods
+        - public domain
+        - Cloudflare/WireGuard/DDNS secret names
+        - published service list
+      outputs:
+        - WireGuard LAN return path
+        - Cloudflare Tunnel/Access entries
+        - IPv6/Caddy entries
+        - DDNS ownership
+      checks:
+        - WireGuard handshake visible
+        - remote HTTPS entries reachable
+        - local/remote links stay paired
+      rollback:
+        - WireGuard data
+        - cloudflared config
+        - Caddyfile
+        - DDNS config
+    apply_policy: review-only until remote rollback, tunnel DNS, and access-policy gates are explicit.
+
+  - id: observability-homenet
+    title: Observability
+    required: true
+    runtimes:
+      - server:homenet+kuma
+      - openwrt:lightweight-status
+      - external-monitor
+    profile_support:
+      openwrt-only: lightweight
+      openwrt-pi: full
+      openwrt-mini-pc: full
+    fallback: lightweight status page and periodic probes
+    description: Status, service directory, topology, troubleshooting, monitor candidates, and human/AI maintenance context.
+    ownership: HomeNet and Kuma explain and monitor; source tools still own live network and service state.
+    module_boundary: HomeNet Ops metadata, status APIs, topology, service inventory, monitor exports, and runbooks.
+    source_tools:
+      - HomeNet Ops
+      - Uptime Kuma
+      - OpenWrt probes
+      - Docker/systemd probes
+    surfaces:
+      inputs:
+        - service inventory
+        - port inventory
+        - topology intent
+        - monitoring level
+      outputs:
+        - HomeNet Ops metadata
+        - Kuma monitor candidates
+        - health/status summaries
+        - maintenance/runbook surfaces
+      checks:
+        - HomeNet API healthy
+        - Kuma tracks critical entries
+        - declared services have owners
+        - rendered docs stay current
+      rollback:
+        - HomeNet Ops runtime
+        - maintenance/state generated files
+        - Kuma export/database backup
+    apply_policy: HomeNet may generate read-only exports; Kuma imports stay explicit until database/API write gates are enabled.
+
+  - id: smart-home
+    title: Smart Home
+    required: false
+    runtimes:
+      - server:home-assistant
+      - external
+      - disabled
+    profile_support:
+      openwrt-only: disabled
+      openwrt-pi: optional-full
+      openwrt-mini-pc: optional-full
+    fallback: disabled or external smart-home hub
+    description: Home Assistant, MQTT, Zigbee, cameras, and related home services are optional network-adjacent modules.
+    ownership: Smart-home services own their integrations and devices; HomeNet keeps service visibility and maintenance links.
+    module_boundary: Smart-home service entries, MQTT/Zigbee/camera bridges, and reachability checks.
+    source_tools:
+      - Home Assistant
+      - Mosquitto MQTT
+      - Zigbee2MQTT
+      - Camera firmware/service UI
+    surfaces:
+      inputs:
+        - smart-home implementation
+        - MQTT/Zigbee/camera services
+        - integration secret names
+      outputs:
+        - Home Assistant entry
+        - MQTT bridge entry
+        - Zigbee bridge entry
+        - camera/media bridge entries
+      checks:
+        - Home Assistant reachable
+        - MQTT listener reachable
+        - Zigbee bridge reachable
+        - declared smart-home containers running
+      rollback:
+        - Home Assistant config backup
+        - MQTT/Zigbee config volumes
+        - camera bridge config
+    apply_policy: inventory and health only unless a smart-home service declares its own adoption/apply gate.
+
+  - id: maintenance-wifi
+    title: Maintenance Wi-Fi
+    required: false
+    runtimes:
+      - openwrt
+    profile_support:
+      openwrt-only: full
+      openwrt-pi: full
+      openwrt-mini-pc: full
+    fallback: local LAN IP and physical access
+    description: A low-dependency maintenance SSID for router, server, and rescue access when DNS/proxy is broken.
+    ownership: OpenWrt owns the SSID, subnet, DHCP, and firewall rules; HomeNet defines the rescue intent and checks.
+    module_boundary: Maintenance SSID, maintenance subnet, proxy bypass, allowed maintenance targets, and direct WAN behavior.
+    source_tools:
+      - OpenWrt UCI
+      - LuCI
+      - SSH
+    surfaces:
+      inputs:
+        - Maintenance SSID
+        - Maintenance subnet
+        - allowed maintenance targets
+        - proxy bypass policy
+      outputs:
+        - low-dependency maintenance Wi-Fi
+        - direct WAN path
+        - limited LAN maintenance access
+      checks:
+        - Maintenance SSID enabled
+        - Maintenance DHCP active
+        - Maintenance clients can reach maintenance ports
+        - Maintenance traffic bypasses transparent proxy
+      rollback:
+        - /etc/config/wireless
+        - /etc/config/network Maintenance interface
+        - /etc/config/firewall Maintenance zone
+        - /etc/config/dhcp Maintenance range
+    apply_policy: review-only until OpenWrt Wi-Fi backup, client-impact confirmation, and post-change rescue proof are enabled.
+
+  - id: server-runtime
+    title: Server Runtime
+    required: false
+    runtimes:
+      - pi
+      - mini-pc
+      - nas
+      - none
+    profile_support:
+      openwrt-only: none
+      openwrt-pi: full
+      openwrt-mini-pc: full
+    fallback: openwrt-only profile
+    description: Optional always-on compute for Docker services, history, dashboards, smart-home integrations, and heavier probes.
+    ownership: Docker Compose, systemd, and service-native tools own runtime state; HomeNet reads and renders inventory.
+    module_boundary: Service runtime host, container inventory, systemd units, ports, local state paths, and backup contracts.
+    source_tools:
+      - Docker Compose
+      - systemd
+      - service-native CLIs/APIs
+    surfaces:
+      inputs:
+        - server host
+        - container runtime
+        - systemd/service ownership
+        - secret storage path names
+      outputs:
+        - Docker Compose service inventory
+        - systemd timer/service inventory
+        - local state paths
+        - service port inventory
+      checks:
+        - containers match declaration
+        - critical systemd units active
+        - declared ports listening
+      rollback:
+        - compose files
+        - systemd unit files
+        - service config volumes
+        - runtime state backups
+    apply_policy: review-only until per-service backup, config test, restart, and health gates are enabled.
+
+  - id: room-ap
+    title: Room AP / Relay
+    required: false
+    runtimes:
+      - openwrt-ap
+      - consumer-ap
+      - mesh
+      - none
+    profile_support:
+      openwrt-only: optional
+      openwrt-pi: optional
+      openwrt-mini-pc: optional
+    fallback: main Wi-Fi only
+    description: Optional coverage layer for bedrooms or weak-signal areas, independent from proxy and DNS features.
+    ownership: The AP/relay source tool owns live wireless state; HomeNet tracks role, backhaul, reachability, and client visibility.
+    module_boundary: Coverage AP/relay intent, backhaul choice, broadcast SSIDs, maintenance entry, and roaming diagnostics.
+    source_tools:
+      - OpenWrt AP
+      - consumer AP UI
+      - mesh controller
+    surfaces:
+      inputs:
+        - room AP type
+        - coverage role
+        - backhaul choice
+        - broadcast SSIDs
+      outputs:
+        - coverage AP/relay intent
+        - room AP maintenance entries
+        - roaming/presence visibility
+      checks:
+        - room AP reachable
+        - backhaul connected
+        - clients can obtain LAN address
+        - presence report fresh when enabled
+      rollback:
+        - room AP network config
+        - room AP wireless config
+        - room AP firewall config
+    apply_policy: review-only until AP backup, management reachability, and client-impact gates are enabled.

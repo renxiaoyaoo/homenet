@@ -1,0 +1,209 @@
+schema: homenet.module_artifacts.v1
+version: 0.1.0
+source: modules/artifacts.yaml
+artifact_count: 29
+principles:
+  - Artifact contracts are owned by modules, not by deployment instances.
+  - Artifacts describe review and future apply surfaces; they do not contain rendered config values or secrets.
+  - Source tools remain authoritative for live state until explicit guarded apply support exists.
+modules:
+  gateway-openwrt:
+    artifacts:
+      - id: network
+        kind: uci-config
+        target: openwrt
+        path: /etc/config/network
+        owner: OpenWrt
+        risk: network-disruptive
+      - id: dhcp
+        kind: uci-config
+        target: openwrt
+        path: /etc/config/dhcp
+        owner: OpenWrt
+        risk: network-disruptive
+      - id: firewall
+        kind: uci-config
+        target: openwrt
+        path: /etc/config/firewall
+        owner: OpenWrt
+        risk: network-disruptive
+      - id: wireless
+        kind: uci-config
+        target: openwrt
+        path: /etc/config/wireless
+        owner: OpenWrt
+        risk: network-disruptive
+
+  dns-layer:
+    artifacts:
+      - id: adguard
+        kind: service-config
+        target: server-runtime
+        path: adguard/conf/AdGuardHome.yaml
+        owner: AdGuard DNS
+        risk: service-restart
+      - id: domestic-upstreams
+        kind: generated-config
+        target: server-runtime
+        path: adguard/conf/upstream-domestic.conf
+        owner: AdGuard DNS
+        risk: service-reload
+      - id: router-forwarding
+        kind: uci-config
+        target: openwrt
+        path: /etc/config/dhcp
+        owner: OpenWrt dnsmasq
+        risk: network-disruptive
+
+  proxy-mihomo:
+    artifacts:
+      - id: mihomo-config
+        kind: service-config
+        target: server-runtime
+        path: mihomo/config.yaml
+        owner: Mihomo Proxy
+        risk: service-restart
+      - id: tproxy-policy
+        kind: route-policy
+        target: openwrt
+        path: /etc/config/firewall + policy route table 100
+        owner: OpenWrt TProxy
+        risk: network-disruptive
+      - id: update-unit
+        kind: systemd-unit
+        target: server-runtime
+        path: maintenance/systemd/mihomo-config-update.service
+        owner: systemd
+        risk: service-restart
+
+  remote-access:
+    artifacts:
+      - id: wireguard
+        kind: service-config
+        target: server-runtime
+        path: wg-easy/
+        owner: WireGuard
+        risk: service-restart
+      - id: cloudflared
+        kind: service-config
+        target: server-runtime
+        path: cloudflared/config.yml
+        owner: Cloudflare Tunnel
+        risk: remote-entry-change
+      - id: caddy
+        kind: service-config
+        target: server-runtime
+        path: caddy/Caddyfile
+        owner: Caddy
+        risk: service-reload
+      - id: ddns
+        kind: service-config
+        target: server-runtime
+        path: ddns-go/config.yaml
+        owner: DDNS
+        risk: remote-entry-change
+
+  observability-homenet:
+    artifacts:
+      - id: ops-compose
+        kind: runtime-config
+        target: server-runtime
+        path: apps/ops/docker-compose.yml
+        owner: HomeNet Ops
+        risk: service-restart
+      - id: metadata
+        kind: generated-data
+        target: server-runtime
+        path: homenet.metadata.v1
+        owner: HomeNet
+        risk: read-only
+      - id: kuma-inventory
+        kind: generated-data
+        target: server-runtime
+        path: homenet.kuma_inventory.v1
+        owner: Uptime Kuma
+        risk: read-only
+      - id: kuma-import-plan
+        kind: generated-data
+        target: server-runtime
+        path: homenet.kuma_import_plan.v1
+        owner: Uptime Kuma
+        risk: database-write-if-applied
+
+  smart-home:
+    artifacts:
+      - id: home-assistant
+        kind: service-config
+        target: server-runtime
+        path: home-assistant/configuration.yaml
+        owner: Home Assistant
+        risk: service-restart
+      - id: mosquitto
+        kind: service-config
+        target: server-runtime
+        path: mosquitto/config/
+        owner: Mosquitto MQTT
+        risk: service-restart
+      - id: zigbee2mqtt
+        kind: service-config
+        target: server-runtime
+        path: zigbee2mqtt/configuration.yaml
+        owner: Zigbee2MQTT
+        risk: service-restart
+
+  maintenance-wifi:
+    artifacts:
+      - id: maintenance-wireless
+        kind: uci-config
+        target: openwrt
+        path: /etc/config/wireless
+        owner: OpenWrt Maintenance Wi-Fi
+        risk: network-disruptive
+      - id: maintenance-network
+        kind: uci-config
+        target: openwrt
+        path: /etc/config/network
+        owner: OpenWrt Maintenance Wi-Fi
+        risk: network-disruptive
+      - id: maintenance-firewall
+        kind: uci-config
+        target: openwrt
+        path: /etc/config/firewall
+        owner: OpenWrt Maintenance Wi-Fi
+        risk: network-disruptive
+
+  server-runtime:
+    artifacts:
+      - id: docker-compose
+        kind: runtime-config
+        target: server-runtime
+        path: docker-compose.yml
+        owner: Docker Compose
+        risk: service-restart
+      - id: systemd-units
+        kind: systemd-unit
+        target: server-runtime
+        path: maintenance/systemd/*.service
+        owner: systemd
+        risk: service-restart
+
+  room-ap:
+    artifacts:
+      - id: room-network
+        kind: uci-config
+        target: room-ap
+        path: /etc/config/network
+        owner: Room AP OpenWrt
+        risk: ap-disruptive
+      - id: room-wireless
+        kind: uci-config
+        target: room-ap
+        path: /etc/config/wireless
+        owner: Room AP OpenWrt
+        risk: ap-disruptive
+      - id: room-firewall
+        kind: uci-config
+        target: room-ap
+        path: /etc/config/firewall
+        owner: Room AP OpenWrt
+        risk: ap-disruptive

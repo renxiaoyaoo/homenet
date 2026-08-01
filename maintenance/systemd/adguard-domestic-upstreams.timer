@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily AdGuard domestic DNS upstream split update
+
+[Timer]
+OnCalendar=*-*-* 04:20:00
+Persistent=true
+RandomizedDelaySec=30m
+Unit=adguard-domestic-upstreams.service
+
+[Install]
+WantedBy=timers.target

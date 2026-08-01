@@ -1,0 +1,522 @@
+{
+  "copied_files": 88,
+  "copy_rules": [
+    "Copy only git-tracked files whose release status is included.",
+    "Preserve relative paths inside the package directory.",
+    "Write PUBLIC_PACKAGE_MANIFEST.json next to the copied files when --output-dir is used.",
+    "Do not copy ignored runtime state, private deployment data, nested repositories, caches, databases, credentials, or secrets."
+  ],
+  "entrypoints": [
+    {
+      "path": "PUBLIC_PACKAGE.md",
+      "purpose": "Start here after receiving an exported public package."
+    },
+    {
+      "path": "README.md",
+      "purpose": "Lightweight project entry: purpose, shortest deployment path, daily operations, and workspace boundaries."
+    },
+    {
+      "path": "docs/operator-path.md",
+      "purpose": "Short operator path for daily use, troubleshooting, and review."
+    },
+    {
+      "path": "instances/example-openwrt-pi/",
+      "purpose": "Server-runtime example deployment profile."
+    },
+    {
+      "path": "instances/example-openwrt-only/",
+      "purpose": "OpenWrt-only example deployment profile."
+    }
+  ],
+  "excluded_tracked_files": [
+    {
+      "path": "PUBLIC_PACKAGE_MANIFEST.json",
+      "reason": "not-in-release-scope",
+      "status": "excluded"
+    }
+  ],
+  "files_by_root": {
+    ".github/": 1,
+    ".gitignore": 1,
+    "CONTRIBUTING.md": 1,
+    "LICENSE": 1,
+    "PUBLIC_PACKAGE.md": 1,
+    "PUBLISHING.md": 1,
+    "README.md": 1,
+    "SECURITY.md": 1,
+    "VERSIONING.md": 1,
+    "apps/ops/": 14,
+    "docs/": 6,
+    "homenet": 1,
+    "instances/example-openwrt-only/": 4,
+    "instances/example-openwrt-pi/": 4,
+    "maintenance/": 26,
+    "modules/": 17,
+    "schemas/": 3,
+    "templates/": 3,
+    "tools/": 1
+  },
+  "included_files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": ".gitignore",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "LICENSE",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "PUBLIC_PACKAGE.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "PUBLISHING.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "SECURITY.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "VERSIONING.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/.dockerignore",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/Dockerfile",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/app.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/docker-compose.yml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/frontend/index.html",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/frontend/package-lock.json",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/frontend/package.json",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/frontend/src/main.tsx",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/frontend/src/styles.css",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/frontend/tsconfig.json",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/frontend/vite.config.ts",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/homenet-ops.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "apps/ops/requirements.txt",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "docs/deployment-and-adoption.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "docs/homenet-design.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "docs/minimal-deployment.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "docs/operator-path.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "docs/public-release.json",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "docs/source-tool-runbook.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "homenet",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "instances/example-openwrt-only/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "instances/example-openwrt-only/devices.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "instances/example-openwrt-only/services.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "instances/example-openwrt-only/site.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "instances/example-openwrt-pi/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "instances/example-openwrt-pi/devices.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "instances/example-openwrt-pi/services.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "instances/example-openwrt-pi/site.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/adguard/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/adguard/update-domestic-upstreams.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/mihomo/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/mihomo/apply-ops-routing-overlay.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/mihomo/mihomo-update.env.example",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/mihomo/update-mihomo-config.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/openwrt/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/openwrt/guest-bridge-hotplug.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/openwrt/mihomo-policy-off.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/openwrt/mihomo-policy-on.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/openwrt/mihomo-watchdog.init",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/openwrt/mihomo-watchdog.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/openwrt/wifi-radio1-guard.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/presence/openwrt-presence-report.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/presence/presence-receiver.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/systemd/adguard-domestic-upstreams.service",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/systemd/adguard-domestic-upstreams.timer",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/systemd/mihomo-config-update.service",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/systemd/mihomo-config-update.timer",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/systemd/mihomo-gateway.service",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/systemd/mihomo-tproxy-route.service",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/systemd/presence-receiver.service",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/tproxy/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/tproxy/mihomo-gateway.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/tproxy/mihomo-tproxy-route.sh",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "maintenance/wireguard/update-wg-status.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/__init__.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/artifacts.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/backups.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/catalog.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/executors.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/implementations.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/__init__.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/common.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/dns_layer.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/observability.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/openwrt.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/proxy_mihomo.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/remote_access.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/server_runtime.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "modules/renderers/service_config.py",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "schemas/devices.schema.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "schemas/services.schema.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "schemas/site.schema.yaml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "templates/compose/README.md",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "templates/compose/docker-compose.yml",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "templates/compose/env.example",
+      "reason": "public-core",
+      "status": "included"
+    },
+    {
+      "path": "tools/homenet.py",
+      "reason": "public-core",
+      "status": "included"
+    }
+  ],
+  "instance": "private-instance",
+  "output_dir": "/tmp/homenet-public",
+  "package_ready": true,
+  "privacy": {
+    "note": "Package manifest is based on tracked paths and release status only; it does not read or print excluded file contents.",
+    "secret_values_checked": false,
+    "secrets_included": false
+  },
+  "read_only": false,
+  "schema": "homenet.public_package.v1",
+  "summary": {
+    "excluded_tracked_files": 1,
+    "included_files": 88,
+    "included_roots": 19,
+    "public_core_ready": true,
+    "source": "git-tracked-files",
+    "tracked_files": 89,
+    "whole_worktree_publishable": false
+  },
+  "writes_files": true,
+  "writes_live_config": false
+}

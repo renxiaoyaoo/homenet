@@ -1,0 +1,158 @@
+schema: homenet.module_executors.v1
+version: 0.1.0
+source: modules/executors.yaml
+principles:
+  - Executor contracts are module-owned dry-run declarations.
+  - supports_write must remain false until backup, proof, source-tool ownership, and post-change evidence are implemented.
+  - Executor contracts must not contain commands with secret values, tokens, private keys, cookies, sessions, or deployment-instance runtime state.
+writers:
+  review-bundle:
+    owner: operator
+    source_tool: HomeNet review bundle and git review
+    write_surface: review artifacts only
+    boundary: May package and review generated intent; must not mutate live devices or services.
+  server-runtime-writer:
+    owner: server-runtime
+    source_tool: Docker Compose, systemd, and service-native configuration on the selected server runtime
+    write_surface: Pi/server runtime
+    boundary: May become eligible for service config writes only after backup, secret, live, ownership, and restart/reload policies are explicit.
+  room-ap-source-tool:
+    owner: room-ap
+    source_tool: OpenWrt LuCI/uci on the room AP
+    write_surface: room AP wireless/network configuration
+    boundary: Must remain source-tool controlled until AP backup, rollback, operator timing, and post-change connectivity checks are proven.
+  openwrt-source-tool:
+    owner: gateway-openwrt
+    source_tool: OpenWrt LuCI/uci and router-side source tools on the gateway
+    write_surface: gateway network, DNS, proxy, firewall, and remote-access configuration
+    boundary: Must remain source-tool controlled until router backup, rollback, operator timing, and live regression gates are proven.
+  source-tool:
+    owner: unknown-target
+    source_tool: module-specific source tool
+    write_surface: module-owned live surface
+    boundary: Unknown target writers must stay disabled until the module declares an exact source-tool owner.
+executor_capabilities:
+  review-bundle:
+    implementation_status: review-only
+    supports_dry_run: true
+    supports_write: false
+    supported_operations:
+      - render-review
+      - bundle-review
+      - privacy-check
+    disabled_reason: Review bundle output is already handled by bundle/render commands; apply does not need to mutate live state for it.
+    implementation_required:
+      - keep output path explicit
+      - keep privacy scan mandatory
+      - keep live state mutation out of this executor
+  server-runtime-writer:
+    implementation_status: not-implemented
+    supports_dry_run: true
+    supports_write: false
+    supported_operations:
+      - service-config-review
+      - service-reload-plan
+      - service-restart-plan
+    disabled_reason: Server runtime writes need exact file renderers, service-native validation, backup capture, and restart/reload policy.
+    implementation_required:
+      - exact deployable renderer for each service config
+      - backup capture and restore verification
+      - service validation command
+      - restart/reload command policy
+      - post-apply live evidence
+  room-ap-source-tool:
+    implementation_status: not-implemented
+    supports_dry_run: true
+    supports_write: false
+    supported_operations:
+      - uci-review
+      - wireless-review
+      - network-review
+    disabled_reason: Room AP writes can break bedroom coverage and must stay source-tool controlled until recovery paths are proven.
+    implementation_required:
+      - exact UCI renderer
+      - AP config backup
+      - reachable recovery path
+      - operator maintenance window
+      - post-apply client connectivity evidence
+  openwrt-source-tool:
+    implementation_status: not-implemented
+    supports_dry_run: true
+    supports_write: false
+    supported_operations:
+      - uci-review
+      - route-policy-review
+      - firewall-review
+      - dns-proxy-review
+    disabled_reason: Gateway writes can affect all network access and require the strongest backup, rescue, and regression gates.
+    implementation_required:
+      - exact OpenWrt/UCI/firewall renderer
+      - gateway config and route-policy backup
+      - Maintenance/rescue path verification
+      - operator maintenance window
+      - post-apply LAN/WAN/DNS/proxy evidence
+  source-tool:
+    implementation_status: unknown
+    supports_dry_run: true
+    supports_write: false
+    supported_operations:
+      - source-tool-review
+    disabled_reason: Unknown writers cannot be applied until the module declares ownership and operations.
+    implementation_required:
+      - declare writer owner
+      - declare source tool
+      - declare backup and verification policy
+readiness_gates:
+  review-bundle:
+    required:
+      - explicit-output-dir
+      - privacy-scan
+      - no-live-state-mutation
+    optional:
+      - git-review
+    promotion_rule: Review bundle writers may write only explicit local review output after privacy and output-path checks pass.
+  server-runtime-writer:
+    required:
+      - exact-renderer
+      - secret-resolution
+      - backup-capture
+      - service-validation
+      - restart-policy
+      - post-apply-live-evidence
+      - rollback-proof
+      - operator-confirmation
+    optional:
+      - maintenance-window
+    promotion_rule: Server runtime writes stay disabled until file rendering, backup, validation, restart/reload, rollback, and live evidence are executable.
+  room-ap-source-tool:
+    required:
+      - exact-uci-renderer
+      - ap-config-backup
+      - recovery-path
+      - operator-maintenance-window
+      - post-apply-client-connectivity
+      - rollback-proof
+      - operator-confirmation
+    optional:
+      - roaming-observation
+    promotion_rule: Room AP writes stay disabled until a failed wireless change can be reached, rolled back, and verified without breaking the maintenance path.
+  openwrt-source-tool:
+    required:
+      - exact-uci-renderer
+      - gateway-config-backup
+      - ops-rescue-verification
+      - operator-maintenance-window
+      - post-apply-lan-wan-dns-proxy-evidence
+      - rollback-proof
+      - operator-confirmation
+    optional:
+      - client-regression-sample
+    promotion_rule: Gateway writes stay disabled until the rescue path, backup, rollback, and post-change LAN/WAN/DNS/Proxy evidence are executable.
+  source-tool:
+    required:
+      - declared-owner
+      - declared-source-tool
+      - declared-backup-policy
+      - declared-verification-policy
+    optional: []
+    promotion_rule: Unknown source-tool writers cannot be promoted until the module declares exact ownership, backup, and verification policy.

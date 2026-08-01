@@ -1,0 +1,93 @@
+schema: homenet.services.v1
+
+services:
+  - id: openwrt-luci
+    name: OpenWrt LuCI
+    category: gateway
+    role: Gateway and module management UI
+    host: 192.168.90.1
+    owner: openwrt
+    runtime: openwrt
+    local_url: http://192.168.90.1/cgi-bin/luci
+    ports:
+      - host: 192.168.90.1
+        port: "80"
+        proto: tcp
+        scope: LAN/HomeNet
+        note: LuCI HTTP
+
+  - id: openwrt-ssh
+    name: OpenWrt SSH
+    category: gateway
+    role: Gateway maintenance shell
+    host: 192.168.90.1
+    owner: openwrt
+    runtime: openwrt
+    ports:
+      - host: 192.168.90.1
+        port: "22"
+        proto: tcp
+        scope: LAN/HomeNet
+        note: OpenWrt SSH
+
+  - id: openwrt-dns
+    name: OpenWrt DNS
+    category: network-core
+    role: dnsmasq or mosdns lightweight DNS
+    host: 192.168.90.1
+    owner: openwrt
+    runtime: openwrt
+    ports:
+      - host: 192.168.90.1
+        port: "53"
+        proto: tcp/udp
+        scope: LAN
+        note: Router DNS
+
+  - id: openwrt-mihomo
+    name: OpenWrt Mihomo
+    category: network-core
+    role: Router-local proxy core when hardware allows
+    host: 192.168.90.1
+    owner: openwrt
+    runtime: openwrt
+    local_url: http://192.168.90.1:9090/ui/
+    ports:
+      - host: 192.168.90.1
+        port: "7890"
+        proto: tcp
+        scope: LAN
+        note: Mixed proxy
+      - host: 192.168.90.1
+        port: "9090"
+        proto: tcp
+        scope: LAN/HomeNet
+        note: HomeNet API
+
+  - id: homenet-light
+    name: HomeNet Lightweight Status
+    category: control-core
+    role: Lightweight status page and periodic probes
+    host: 192.168.90.1
+    owner: openwrt
+    runtime: openwrt
+    local_url: http://192.168.90.1/homenet/
+    checks:
+      - type: http
+        target: http://192.168.90.1/homenet/
+        expected: status page reachable
+
+  - id: wireguard-router
+    name: OpenWrt WireGuard
+    category: remote-entry
+    role: Router-hosted LAN return path
+    host: 192.168.90.1
+    owner: openwrt
+    runtime: openwrt
+    remote_url: udp://vpn.example.net:51820
+    ports:
+      - host: 192.168.90.1
+        port: "51820"
+        proto: udp
+        scope: WAN
+        note: WireGuard UDP

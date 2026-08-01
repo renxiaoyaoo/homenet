@@ -1,0 +1,18 @@
+{
+  "schema": "homenet.public_release.v1",
+  "repository": "<public-repo-url>",
+  "branch": "main",
+  "last_verified_commit": "e06065e105aa6a114035b4d9c0dc98e6e73b0fd5",
+  "ci": {
+    "provider": "local",
+    "workflow": "HomeNet publish-check",
+    "run_id": "",
+    "status": "success",
+    "checked_at": "2026-07-31T20:57:30+08:00"
+  },
+  "privacy": {
+    "contains_private_instance": false,
+    "contains_runtime_data": false,
+    "contains_secrets": false
+  }
+}

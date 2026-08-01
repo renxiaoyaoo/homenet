@@ -1,0 +1,134 @@
+schema: homenet.services.v1
+
+services:
+  - id: openwrt-luci
+    name: OpenWrt LuCI
+    category: gateway
+    role: Gateway management UI
+    host: 192.168.50.1
+    owner: openwrt
+    runtime: openwrt
+    local_url: http://192.168.50.1/cgi-bin/luci
+    ports:
+      - host: 192.168.50.1
+        port: "80"
+        proto: tcp
+        scope: LAN
+        note: LuCI HTTP
+
+  - id: openwrt-ssh
+    name: OpenWrt SSH
+    category: gateway
+    role: Gateway maintenance shell
+    host: 192.168.50.1
+    owner: openwrt
+    runtime: openwrt
+    ports:
+      - host: 192.168.50.1
+        port: "22"
+        proto: tcp
+        scope: LAN/HomeNet
+        note: OpenWrt SSH
+
+  - id: homenet-ops
+    name: HomeNet Ops
+    category: control-core
+    role: Operations surface and service directory
+    host: 192.168.50.5
+    owner: homenet-ops
+    runtime: server
+    local_url: http://192.168.50.5:9999/
+    remote_url: https://ops.example.net/
+    ports:
+      - host: 192.168.50.5
+        port: "9999"
+        proto: tcp
+        scope: LAN/HomeNet
+        note: HomeNet HTTP
+
+  - id: adguard
+    name: AdGuard DNS
+    category: network-core
+    role: DNS split, blocking, and query visibility
+    host: 192.168.50.5
+    owner: adguardhome
+    runtime: server
+    local_url: http://192.168.50.5:3000/
+    ports:
+      - host: 192.168.50.5
+        port: "53"
+        proto: tcp/udp
+        scope: LAN
+        note: DNS
+      - host: 192.168.50.5
+        port: "3000"
+        proto: tcp
+        scope: LAN/HomeNet
+        note: AdGuard UI
+
+  - id: mihomo
+    name: Mihomo Proxy
+    category: network-core
+    role: Rule-based proxy core and fake-ip DNS
+    host: 192.168.50.5
+    owner: mihomo
+    runtime: server
+    local_url: http://192.168.50.5:9090/ui/
+    ports:
+      - host: 192.168.50.5
+        port: "7890"
+        proto: tcp
+        scope: LAN
+        note: Mixed proxy
+      - host: 192.168.50.5
+        port: "1053"
+        proto: tcp/udp
+        scope: LAN/OpenWrt
+        note: Fake-IP DNS
+      - host: 192.168.50.5
+        port: "9090"
+        proto: tcp
+        scope: LAN/HomeNet
+        note: HomeNet API
+
+  - id: uptime-kuma
+    name: Uptime Kuma
+    category: control-core
+    role: Availability monitoring and notifications
+    host: 192.168.50.5
+    owner: uptime-kuma
+    runtime: server
+    local_url: http://192.168.50.5:3001/
+    ports:
+      - host: 192.168.50.5
+        port: "3001"
+        proto: tcp
+        scope: LAN/HomeNet
+        note: Kuma UI
+
+  - id: wireguard
+    name: WireGuard
+    category: remote-entry
+    role: LAN-level remote return path
+    host: 192.168.50.5
+    owner: wg-easy
+    runtime: server
+    remote_url: udp://vpn.example.net:51820
+    ports:
+      - host: 192.168.50.5
+        port: "51820"
+        proto: udp
+        scope: WAN
+        note: WireGuard UDP
+
+  - id: cloudflared
+    name: Cloudflare Tunnel
+    category: remote-entry
+    role: Selected HTTPS remote entries
+    host: 192.168.50.5
+    owner: cloudflared
+    runtime: server
+    checks:
+      - type: external
+        target: https://ops.example.net/
+        expected: protected by Cloudflare Access

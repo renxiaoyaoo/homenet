@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Mihomo config update check every minute
+
+[Timer]
+OnBootSec=1m
+OnUnitActiveSec=60s
+AccuracySec=5s
+Persistent=true
+Unit=mihomo-config-update.service
+
+[Install]
+WantedBy=timers.target

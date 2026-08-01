@@ -1,0 +1,176 @@
+schema: homenet.site.v1
+
+site:
+  name: example-openwrt-pi
+  display_name: Example Home - OpenWrt + Server
+  domain: example.net
+  locale: en-US
+
+runtime:
+  router:
+    type: openwrt
+    host: 192.168.50.1
+    user: root
+  server:
+    enabled: true
+    preferred: pi
+    host: 192.168.50.5
+    role: Server runtime for DNS, Proxy, Observability, and Remote Access
+  room_ap:
+    type: openwrt-ap
+    host: 192.168.50.2
+    role: Optional room coverage AP
+
+networks:
+  lan:
+    enabled: true
+    cidr: 192.168.50.0/24
+    gateway: 192.168.50.1
+    dhcp: 100-249
+    purpose: Main LAN for daily devices and home services.
+    dns_mode: home
+    proxy_mode: transparent
+  iot:
+    enabled: true
+    cidr: 192.168.60.0/24
+    gateway: 192.168.60.1
+    dhcp: 100-249
+    purpose: Isolated IoT network.
+    dns_mode: home
+    proxy_mode: direct
+  guest:
+    enabled: true
+    cidr: 192.168.70.0/24
+    gateway: 192.168.70.1
+    dhcp: 100-249
+    purpose: Guest network with LAN isolation.
+    dns_mode: public
+    proxy_mode: direct
+  ops:
+    enabled: true
+    cidr: 192.168.80.0/24
+    gateway: 192.168.80.1
+    dhcp: 100-149
+    purpose: Maintenance SSID with direct WAN and limited access to server runtime.
+    dns_mode: public
+    proxy_mode: bypass
+
+wifi:
+  main:
+    ssid: ExampleHome
+    network: lan
+    band: 2.4G+5G
+    purpose: Daily Wi-Fi with home DNS and transparent proxy.
+    broadcast_by:
+      - OpenWrt Gateway
+      - Room AP
+  iot:
+    ssid: ExampleHome_IoT
+    network: iot
+    band: 2.4G
+    purpose: Smart home devices.
+    broadcast_by:
+      - OpenWrt Gateway
+  guest:
+    ssid: ExampleHome_Guest
+    network: guest
+    band: 2.4G+5G
+    purpose: Guest devices.
+    broadcast_by:
+      - OpenWrt Gateway
+  ops:
+    ssid: ExampleHome_Ops
+    network: ops
+    band: 2.4G
+    purpose: Maintenance path independent from home DNS/proxy.
+    broadcast_by:
+      - OpenWrt Gateway
+
+remote_ingress:
+  - id: homenet-access
+    name: ops.example.net
+    kind: cloudflare-access
+    href: https://ops.example.net/
+    target: cloudflared -> HomeNet Ops
+    service_id: homenet-ops
+    status_source: kuma
+  - id: wireguard
+    name: vpn.example.net:51820/udp
+    kind: wireguard-udp
+    target: WireGuard
+    service_id: wireguard
+    status_source: wireguard
+
+modules:
+  gateway-openwrt:
+    enabled: true
+    runtime: openwrt
+    implementation: openwrt
+  dns-layer:
+    enabled: true
+    runtime: server
+    implementation: adguard
+    fallback: openwrt:dnsmasq
+  proxy-mihomo:
+    enabled: true
+    runtime: server
+    implementation: mihomo
+    fallback: explicit proxy
+  remote-access:
+    enabled: true
+    runtime: mixed
+    implementation: wireguard+cloudflare-tunnel
+    methods:
+      - wireguard
+      - cloudflare_tunnel
+  observability-homenet:
+    enabled: true
+    runtime: server
+    implementation: homenet+kuma
+    fallback: lightweight-status
+  smart-home:
+    enabled: false
+    runtime: server
+    implementation: home-assistant
+    reason: Optional example add-on.
+  maintenance-wifi:
+    enabled: true
+    runtime: openwrt
+    implementation: openwrt-isolated-ssid
+  server-runtime:
+    enabled: true
+    runtime: pi
+    implementation: docker+systemd
+  room-ap:
+    enabled: true
+    runtime: openwrt-ap
+    implementation: relay-or-ap
+
+features:
+  dns:
+    enabled: true
+    implementation: adguard
+    runtime: server
+  proxy:
+    enabled: true
+    implementation: mihomo
+    runtime: server
+  transparent_proxy:
+    enabled: true
+    implementation: openwrt-tproxy-to-server
+    runtime: mixed
+  remote_access:
+    enabled: true
+    methods:
+      - wireguard
+      - cloudflare_tunnel
+  observability:
+    enabled: true
+    implementation: homenet+kuma
+    level: full
+  smart_home:
+    enabled: false
+  maintenance_wifi:
+    enabled: true
+    implementation: openwrt-isolated-ssid
+    runtime: openwrt

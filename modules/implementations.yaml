@@ -1,0 +1,122 @@
+schema: homenet.module_implementations.v1
+version: 0.1.0
+source: modules/implementations.yaml
+implementation_count: 27
+principles:
+  - Implementation contracts are owned by modules, not by deployment instances.
+  - Module-owned adapters are preferred; remaining centralized CLI implementations are adoption backlog.
+  - Implementation entries must not contain rendered config values or secrets.
+  - Review-only implementations may produce deterministic review output but must not imply live apply support.
+defaults:
+  implementation_surface: tools/homenet.py::build_config_plan
+  implementation_status: centralized-review-renderer
+  write_support: disabled
+  adoption_target: module-owned renderer/checker boundary
+modules:
+  gateway-openwrt:
+    implementations:
+      - id: gateway-network-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_gateway_network_inventory
+        implementation_status: module-owned-review-renderer
+      - id: gateway-dhcp-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_gateway_dhcp_inventory
+        implementation_status: module-owned-review-renderer
+      - id: gateway-firewall-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_gateway_firewall_inventory
+        implementation_status: module-owned-review-renderer
+      - id: gateway-wireless-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_gateway_wireless_inventory
+        implementation_status: module-owned-review-renderer
+
+  dns-layer:
+    implementations:
+      - id: adguard-domestic-upstreams
+        implementation_surface: modules/renderers/dns_layer.py::render_adguard_domestic_upstreams_review
+        implementation_status: module-owned-review-renderer
+      - id: adguard-config-inventory
+        implementation_surface: modules/renderers/service_config.py::render_adguard_config_inventory
+        implementation_status: module-owned-review-renderer
+      - id: dns-router-forwarding-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_dns_router_forwarding_inventory
+        implementation_status: module-owned-review-renderer
+
+  proxy-mihomo:
+    implementations:
+      - id: mihomo-config-inventory
+        implementation_surface: modules/renderers/proxy_mihomo.py::render_mihomo_config_inventory
+        implementation_status: module-owned-review-renderer
+      - id: mihomo-tproxy-policy-inventory
+        implementation_surface: modules/renderers/proxy_mihomo.py::render_mihomo_tproxy_policy_inventory
+        implementation_status: module-owned-review-renderer
+      - id: mihomo-update-unit-inventory
+        implementation_surface: modules/renderers/proxy_mihomo.py::render_mihomo_update_unit_inventory
+        implementation_status: module-owned-review-renderer
+
+  remote-access:
+    implementations:
+      - id: wireguard-remote-access
+        implementation_surface: modules/renderers/remote_access.py::render_wireguard_remote_access
+        implementation_status: module-owned-review-renderer
+      - id: cloudflared-remote-ingress
+        implementation_surface: modules/renderers/remote_access.py::render_cloudflared_remote_ingress
+        implementation_status: module-owned-review-renderer
+      - id: caddy-remote-ingress
+        implementation_surface: modules/renderers/remote_access.py::render_caddy_remote_ingress
+        implementation_status: module-owned-review-renderer
+      - id: ddns-remote-ingress
+        implementation_surface: modules/renderers/remote_access.py::render_ddns_remote_ingress
+        implementation_status: module-owned-review-renderer
+
+  observability-homenet:
+    implementations:
+      - id: homenet-ops-runtime-inventory
+        implementation_surface: modules/renderers/service_config.py::render_homenet_ops_runtime_inventory
+        implementation_status: module-owned-review-renderer
+      - id: kuma-import-plan-review
+        implementation_surface: modules/renderers/observability.py::render_kuma_import_plan_review
+        implementation_status: module-owned-review-renderer
+
+  smart-home:
+    implementations:
+      - id: home-assistant-config-inventory
+        implementation_surface: modules/renderers/service_config.py::render_home_assistant_config_inventory
+        implementation_status: module-owned-review-renderer
+      - id: mosquitto-config-inventory
+        implementation_surface: modules/renderers/service_config.py::render_mosquitto_config_inventory
+        implementation_status: module-owned-review-renderer
+      - id: zigbee2mqtt-config-inventory
+        implementation_surface: modules/renderers/service_config.py::render_zigbee2mqtt_config_inventory
+        implementation_status: module-owned-review-renderer
+
+  maintenance-wifi:
+    implementations:
+      - id: maintenance-network-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_ops_network_inventory
+        implementation_status: module-owned-review-renderer
+      - id: maintenance-wireless-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_ops_wireless_inventory
+        implementation_status: module-owned-review-renderer
+      - id: maintenance-firewall-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_ops_firewall_inventory
+        implementation_status: module-owned-review-renderer
+
+  server-runtime:
+    implementations:
+      - id: docker-compose-inventory
+        implementation_surface: modules/renderers/server_runtime.py::render_docker_compose_inventory
+        implementation_status: module-owned-review-renderer
+      - id: systemd-units-inventory
+        implementation_surface: modules/renderers/server_runtime.py::render_systemd_units_inventory
+        implementation_status: module-owned-review-renderer
+
+  room-ap:
+    implementations:
+      - id: room-network-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_room_network_inventory
+        implementation_status: module-owned-review-renderer
+      - id: room-wireless-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_room_wireless_inventory
+        implementation_status: module-owned-review-renderer
+      - id: room-firewall-inventory
+        implementation_surface: modules/renderers/openwrt.py::render_room_firewall_inventory
+        implementation_status: module-owned-review-renderer

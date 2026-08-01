@@ -1,0 +1,37 @@
+schema: homenet.services.v1
+description: Service inventory, local entries, remote entries, and expected ports.
+required:
+  - services
+fields:
+  services:
+    type: list
+    item:
+      required: [id, name, category]
+      fields:
+        id: string
+        name: string
+        category: enum(gateway, network-core, home-core, control-core, remote-entry, storage, system-task, udp-entry, external)
+        role: string
+        host: ipv4_or_hostname
+        owner: string
+        containers: list_string
+        runtime: enum(openwrt, server, external, cloud, mixed)
+        local_url: url
+        remote_url: url
+        ports:
+          type: list
+          item:
+            fields:
+              host: ipv4_or_hostname
+              port: string
+              proto: string
+              scope: string
+              note: string
+        checks:
+          type: list
+          item:
+            fields:
+              type: enum(http, tcp, udp, tracked, external)
+              target: string
+              expected: string
+        notes: string

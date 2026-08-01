@@ -1,0 +1,22 @@
+schema: homenet.devices.v1
+description: Expected devices and fixed addresses for a HomeNet instance.
+required:
+  - devices
+fields:
+  devices:
+    type: list
+    item:
+      required: [id, name]
+      fields:
+        id: string
+        name: string
+        role: string
+        owner: string
+        network: string
+        ip: ipv4
+        macs: list_mac
+        hostnames: list_string
+        expected: bool
+        presence: string
+        notes: string
+        source: string

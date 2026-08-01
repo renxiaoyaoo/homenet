@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+echo "Running HomeNet public privacy guard..."
+./homenet privacy --scope public >/dev/null
+./homenet check --instance "${HOMENET_INSTANCE:-instances/example-openwrt-pi}" >/dev/null
+echo "HomeNet public privacy guard passed."

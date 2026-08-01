@@ -1,0 +1,35 @@
+services:
+  homenet-ops:
+    build: .
+    image: homenet-ops:latest
+    container_name: homenet-ops
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      OPENWRT_HOST: 192.168.50.1
+      OPENWRT_USER: root
+      WAN_IF: pppoe-wan
+      MIHOMO_URL: http://127.0.0.1:9090
+      MIHOMO_CONFIG: /mihomo-config.yaml
+      MIHOMO_RUNTIME_CONFIG: /root/.config/mihomo/config.yaml
+      MIHOMO_CONFIG_WRITE: /mihomo-config/config.yaml
+      ROUTING_RULES_STORE: /runtime/routing/rules.json
+      ROUTING_RULE_DIR: /mihomo-rules
+      ADGUARD_DOMESTIC_FILE: /adguard-conf/upstream-domestic.conf
+      HEALTH_INTERVAL: 30
+      REFRESH: 15
+      PORT: 9999
+    volumes:
+      - /home/pi/.ssh:/root/.ssh:ro
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/apps/ops/app.py:/app/app.py:ro
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/apps/ops/static:/app/static:ro
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/mihomo/config.yaml:/mihomo-config.yaml:ro
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/mihomo:/mihomo-config
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/mihomo/rules:/mihomo-rules
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/runtime:/runtime
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/adguard/conf:/adguard-conf:ro
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/maintenance/state:/maintenance-state:ro
+      - ${HOMENET_INSTANCE_PATH:-/home/pi/network/instances/example-openwrt-pi}:/homenet-instance:ro
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/tools:/homenet-tools:ro
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/modules:/modules:ro
+      - ${HOMENET_WORKSPACE:-/home/pi/network}/schemas:/schemas:ro

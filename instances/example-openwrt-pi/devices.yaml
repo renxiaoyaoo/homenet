@@ -1,0 +1,46 @@
+schema: homenet.devices.v1
+
+devices:
+  - id: openwrt-gateway
+    name: OpenWrt Gateway
+    role: Router / Gateway / DHCP / Firewall / Wi-Fi
+    network: lan
+    ip: 192.168.50.1
+    expected: true
+
+  - id: room-ap
+    name: Room AP
+    role: Optional coverage AP
+    network: lan
+    ip: 192.168.50.2
+    expected: false
+
+  - id: server-runtime
+    name: Server Runtime
+    role: Pi, mini PC, NAS, or other always-on host
+    network: lan
+    ip: 192.168.50.5
+    hostnames:
+      - homenet-server
+    expected: true
+
+  - id: laptop
+    name: Example Laptop
+    role: Daily client
+    network: lan
+    ip: 192.168.50.30
+    expected: true
+
+  - id: phone
+    name: Example Phone
+    role: Daily client
+    network: lan
+    ip: 192.168.50.60
+    expected: true
+
+  - id: smart-plug
+    name: Example Smart Plug
+    role: IoT device
+    network: iot
+    ip: 192.168.60.100
+    expected: true

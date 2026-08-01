@@ -1,0 +1,49 @@
+name: HomeNet CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  public-core:
+    name: Public core checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pyyaml
+
+      - name: Compile Python
+        run: python -m compileall -q tools modules
+
+      - name: Public privacy scan
+        run: ./homenet privacy --scope public --format json
+
+      - name: Example CI
+        run: |
+          ./homenet ci --instance instances/example-openwrt-pi --format json
+          ./homenet ci --instance instances/example-openwrt-only --format json
+
+      - name: Package manifest
+        run: ./homenet package --instance instances/example-openwrt-pi --format json
+
+      - name: Export package
+        run: ./homenet package --instance instances/example-openwrt-pi --output-dir /tmp/homenet-public --force
+
+      - name: Package check
+        run: ./homenet package-check --dir /tmp/homenet-public --format json
+
+      - name: Package smoke
+        run: ./homenet package-smoke --dir /tmp/homenet-public --format json

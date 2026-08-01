@@ -1,0 +1,147 @@
+schema: homenet.site.v1
+
+site:
+  name: example-openwrt-only
+  display_name: Example Home - OpenWrt Only
+  domain: example.net
+  locale: en-US
+
+runtime:
+  router:
+    type: openwrt
+    host: 192.168.90.1
+    user: root
+  server:
+    enabled: false
+    preferred: openwrt
+
+networks:
+  lan:
+    enabled: true
+    cidr: 192.168.90.0/24
+    gateway: 192.168.90.1
+    dhcp: 100-249
+    purpose: Main LAN for daily devices.
+    dns_mode: router
+    proxy_mode: transparent
+  guest:
+    enabled: true
+    cidr: 192.168.91.0/24
+    gateway: 192.168.91.1
+    dhcp: 100-249
+    purpose: Guest network with LAN isolation.
+    dns_mode: public
+    proxy_mode: direct
+  ops:
+    enabled: true
+    cidr: 192.168.92.0/24
+    gateway: 192.168.92.1
+    dhcp: 100-149
+    purpose: Maintenance SSID with direct WAN and router access.
+    dns_mode: public
+    proxy_mode: bypass
+
+wifi:
+  main:
+    ssid: ExampleSolo
+    network: lan
+    band: 2.4G+5G
+    purpose: Daily Wi-Fi.
+    broadcast_by:
+      - OpenWrt Gateway
+  guest:
+    ssid: ExampleSolo_Guest
+    network: guest
+    band: 2.4G+5G
+    purpose: Guest devices.
+    broadcast_by:
+      - OpenWrt Gateway
+  ops:
+    ssid: ExampleSolo_Ops
+    network: ops
+    band: 2.4G
+    purpose: Maintenance path independent from DNS/proxy rules.
+    broadcast_by:
+      - OpenWrt Gateway
+
+remote_ingress:
+  - id: wireguard-router
+    name: vpn.example.net:51820/udp
+    kind: wireguard-udp
+    target: OpenWrt WireGuard
+    service_id: wireguard-router
+    status_source: wireguard
+
+modules:
+  gateway-openwrt:
+    enabled: true
+    runtime: openwrt
+    implementation: openwrt
+  dns-layer:
+    enabled: true
+    runtime: openwrt
+    implementation: dnsmasq
+    fallback: public DNS
+  proxy-mihomo:
+    enabled: true
+    runtime: openwrt
+    implementation: mihomo
+    fallback: explicit proxy
+  remote-access:
+    enabled: true
+    runtime: openwrt
+    implementation: wireguard
+    methods:
+      - wireguard
+  observability-homenet:
+    enabled: true
+    runtime: openwrt
+    implementation: lightweight-status
+    fallback: external monitor
+  smart-home:
+    enabled: false
+    runtime: external
+    implementation: disabled
+    reason: Heavy smart-home services are outside the OpenWrt-only baseline.
+  maintenance-wifi:
+    enabled: true
+    runtime: openwrt
+    implementation: openwrt-isolated-ssid
+  server-runtime:
+    enabled: false
+    runtime: none
+    implementation: disabled
+    reason: This profile intentionally has no always-on server runtime.
+  room-ap:
+    enabled: false
+    runtime: none
+    implementation: disabled
+    reason: Optional coverage add-on.
+
+features:
+  dns:
+    enabled: true
+    implementation: dnsmasq
+    runtime: openwrt
+  proxy:
+    enabled: true
+    implementation: mihomo
+    runtime: openwrt
+  transparent_proxy:
+    enabled: true
+    implementation: openwrt-local-tproxy
+    runtime: openwrt
+  remote_access:
+    enabled: true
+    methods:
+      - wireguard
+  observability:
+    enabled: true
+    implementation: lightweight-status
+    level: lightweight
+  smart_home:
+    enabled: false
+  maintenance_wifi:
+    enabled: true
+    implementation: openwrt-isolated-ssid
+    runtime: openwrt

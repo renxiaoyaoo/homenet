@@ -1,0 +1,63 @@
+schema: homenet.module_backups.v1
+version: 0.1.0
+source: modules/backups.yaml
+principles:
+  - Backup contracts are module-owned dry-run declarations.
+  - Backup capture, restore, and verify runners remain disabled until backup roots, allowlists, live proof, and restore rehearsal are implemented.
+  - Backup contracts must never include captured data, secrets, tokens, private keys, cookies, sessions, or database contents.
+method_capabilities:
+  server-file-copy:
+    owner: server-runtime
+    implementation_status: not-implemented
+    supports_plan: true
+    supports_capture: false
+    supports_restore: false
+    supports_verify: false
+    disabled_reason: Server file copy needs a checked backup root, path allowlist, filesystem permissions, and post-copy verification before it can run.
+    implementation_required:
+      - operator-selected BACKUP_DIR outside git
+      - path allowlist rooted in declared service artifacts
+      - copy command without shell injection risk
+      - post-copy existence and checksum/size verification
+      - restore dry-run and service validation policy
+  openwrt-ssh:
+    owner: gateway-openwrt
+    implementation_status: not-implemented
+    supports_plan: true
+    supports_capture: false
+    supports_restore: false
+    supports_verify: false
+    disabled_reason: OpenWrt SSH capture needs host identity, SSH key policy, UCI/package command allowlist, and rescue path proof.
+    implementation_required:
+      - explicit OPENWRT_HOST or ROOM_AP_HOST target
+      - known host or fingerprint policy
+      - UCI/export command allowlist
+      - Maintenance Wi-Fi or LAN rescue path verified before capture
+      - captured files stored outside git
+  database-copy:
+    owner: observability-homenet
+    implementation_status: not-implemented
+    supports_plan: true
+    supports_capture: false
+    supports_restore: false
+    supports_verify: false
+    disabled_reason: Database copy needs service quiesce/snapshot policy, privacy filtering, and restore verification before it can run.
+    implementation_required:
+      - database owner and stop/snapshot policy
+      - backup path outside git and chat
+      - privacy handling for tokens, sessions, and user data
+      - read-only diff or export verification
+      - restore rehearsal for each database type
+  source-tool-export:
+    owner: manual-source-tool
+    implementation_status: manual-only
+    supports_plan: true
+    supports_capture: false
+    supports_restore: false
+    supports_verify: false
+    disabled_reason: Generic source-tool export has no safe automated command until the module declares an exact source tool.
+    implementation_required:
+      - module-specific source tool
+      - export command or API contract
+      - restore command or API contract
+      - verification check

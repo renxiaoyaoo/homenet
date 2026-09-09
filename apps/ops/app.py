@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 import re
-import shlex
 import time
 from pathlib import Path
 from typing import Any
@@ -13,7 +12,7 @@ import yaml
 from aiohttp import web
 
 INSTANCE_DIR = Path(os.getenv("HOMENET_INSTANCE_DIR", "/homenet-instance")).resolve()
-HOMENET_TOOL = Path(os.getenv("HOMENET_PLAN_TOOL", "/tools/homenet.py")).resolve()
+HOMENET_TOOL = Path(os.getenv("HOMENET_TOOL", "/tools/homenet.py")).resolve()
 MIHOMO_URL = os.getenv("MIHOMO_URL", "http://127.0.0.1:9090").rstrip("/")
 MIHOMO_HTTP_PROXY = os.getenv("MIHOMO_HTTP_PROXY", "http://192.168.10.5:7890")
 MIHOMO_CONFIG = os.getenv("MIHOMO_CONFIG", "/mihomo-config.yaml")
@@ -29,9 +28,6 @@ OPENWRT_USER = os.getenv("OPENWRT_USER", "root")
 ROOM_AP_IP = os.getenv("ROOM_AP_IP", "192.168.50.2")
 ROOM_AP_LOCAL_IP = os.getenv("ROOM_AP_LOCAL_IP", "192.168.1.1")
 OPENWRT_WAN_INTERFACE = os.getenv("OPENWRT_WAN_INTERFACE", "wan")
-INCIDENT_SAMPLE = Path(os.getenv("INCIDENT_SAMPLE", "/runtime/incidents/latest-network-sample.env"))
-INCIDENT_LOG = Path(os.getenv("INCIDENT_LOG", str(INCIDENT_SAMPLE.with_name("network-samples.log"))))
-WAN_RECOVERY_STATE = Path(os.getenv("WAN_RECOVERY_STATE", str(INCIDENT_SAMPLE.with_name("wan-recovery.state"))))
 
 STATE: dict[str, Any] = {
     "ok": False,
@@ -129,6 +125,7 @@ def service_ports(metadata: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         rows.append({
             "service_key": str(port.get("service_id") or ""),
+            "module_enabled": port.get("module_enabled"),
             "host": str(port.get("host") or ""),
             "port": str(port.get("port") or ""),
             "proto": str(port.get("proto") or "tcp"),
@@ -268,8 +265,8 @@ def merge_services(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 async def probe_services(metadata: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    services = metadata.get("service_directory") or []
-    ports = service_ports(metadata)
+    services = [service for service in metadata.get("service_directory") or [] if service.get("module_enabled") is not False]
+    ports = [port for port in service_ports(metadata) if port.get("module_enabled") is not False]
     rows = [base_service(service) for service in services if isinstance(service, dict)]
     service_by_id = {service.get("id"): service for service in services if isinstance(service, dict)}
     timeout = aiohttp.ClientTimeout(total=2.5)
@@ -345,137 +342,6 @@ def check(check_id: str, title: str, status: str, detail: str, next_action: str 
     return {"id": check_id, "title": title, "status": status, "detail": detail, "next_action": next_action, "entry": entry}
 
 
-def latest_incident_sample() -> dict[str, Any] | None:
-    try:
-        raw = INCIDENT_SAMPLE.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    if not raw:
-        return None
-    try:
-        tokens = shlex.split(raw)
-    except ValueError:
-        return None
-    sample: dict[str, Any] = {}
-    for token in tokens:
-        if "=" not in token:
-            continue
-        key, value = token.split("=", 1)
-        sample[key] = value
-    ts = str(sample.get("ts") or "")
-    if ts:
-        try:
-            parsed = time.strptime(ts[:19], "%Y-%m-%dT%H:%M:%S")
-            sample["age_seconds"] = max(0, int(time.time() - time.mktime(parsed)))
-        except ValueError:
-            pass
-    return sample
-
-
-def parse_incident_sample_line(raw: str) -> dict[str, Any] | None:
-    try:
-        tokens = shlex.split(raw.strip())
-    except ValueError:
-        return None
-    sample: dict[str, Any] = {}
-    for token in tokens:
-        if "=" not in token:
-            continue
-        key, value = token.split("=", 1)
-        sample[key] = value
-    return sample or None
-
-
-def router_wan_uptime(sample: dict[str, Any]) -> int | None:
-    parts = str(sample.get("router_wan") or "").split()
-    if len(parts) < 2:
-        return None
-    try:
-        return int(parts[1])
-    except ValueError:
-        return None
-
-
-def router_reboot_check() -> dict[str, Any] | None:
-    try:
-        lines = INCIDENT_LOG.read_text(encoding="utf-8").splitlines()[-90:]
-    except OSError:
-        return None
-    previous: tuple[str, int] | None = None
-    latest_drop: tuple[str, int, str, int] | None = None
-    for line in lines:
-        sample = parse_incident_sample_line(line)
-        if not sample:
-            continue
-        uptime = router_wan_uptime(sample)
-        ts = str(sample.get("ts") or "")
-        if uptime is None or not ts:
-            continue
-        if previous and previous[1] > 600 and uptime < 300 and uptime < previous[1] - 300:
-            latest_drop = (previous[0], previous[1], ts, uptime)
-        previous = (ts, uptime)
-    if not latest_drop:
-        return None
-    prev_ts, prev_uptime, ts, uptime = latest_drop
-    return check(
-        "router-reboot-detected",
-        "主路由发生过重启/重新拨号",
-        "warn",
-        f"{prev_ts} uptime={prev_uptime}s，{ts} uptime={uptime}s。",
-        "如果这是手动重启，它是恢复动作，不是根因；根因要看重启前 WAN 是否黑洞、PPPoE 是否重拨、DNS/公网是否同时失败。",
-        "http://192.168.10.1/cgi-bin/luci",
-    )
-
-
-def read_key_value_file(path: Path) -> dict[str, str]:
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError:
-        return {}
-    result: dict[str, str] = {}
-    for line in lines:
-        if "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        result[key] = value
-    return result
-
-
-def wan_recovery_check() -> dict[str, Any]:
-    state = read_key_value_file(WAN_RECOVERY_STATE)
-    if not state:
-        return check("wan-recovery", "WAN 自动恢复", "warn", "还没有状态。", "等待采样脚本运行，或检查 network-incident-recorder。")
-    fail_count = int(state.get("fail_count") or 0)
-    threshold = int(state.get("threshold") or 5)
-    last_status = state.get("last_status") or "none"
-    last_action = int(state.get("last_action") or 0)
-    if last_status.startswith("redial-failed"):
-        return check("wan-recovery", "WAN 自动恢复", "bad", f"最近尝试失败：{last_status}。", "进入 OpenWrt 查看 WAN/PPPoE，必要时手动重拨或重启主路由。", "http://192.168.10.1/cgi-bin/luci")
-    if last_status.startswith("redial"):
-        age_seconds = max(0, int(time.time() - last_action)) if last_action else 0
-        return check("wan-recovery", "WAN 自动恢复", "warn", f"最近执行过 {last_status}，约 {age_seconds}s 前。", "如果网络已恢复，说明 WAN 黑洞重拨生效；如果未恢复，继续查运营商或主路由。")
-    if fail_count > 0:
-        return check("wan-recovery", "WAN 自动恢复", "warn", f"WAN 黑洞疑似计数 {fail_count}/{threshold}。", f"连续 {threshold} 次才会只重拨 WAN，不会重启路由或 Wi-Fi。")
-    return check("wan-recovery", "WAN 自动恢复", "ok", "待命；当前没有 WAN 黑洞计数。")
-
-
-def incident_sample_check() -> dict[str, Any]:
-    sample = latest_incident_sample()
-    if not sample:
-        return check("recent-network-sample", "最近故障留证", "warn", "还没有采样。", "等待 1 分钟，或检查 Pi crontab 中的 network-incident-recorder。")
-    age_seconds = int(sample.get("age_seconds") or 0)
-    fields = ["gateway", "pi", "room_ap", "internet", "adguard_dns", "public_dns", "mihomo"]
-    failed = [field for field in fields if str(sample.get(field) or "").startswith("fail")]
-    warned = [field for field in fields if str(sample.get(field) or "").startswith("warn")]
-    if age_seconds > 180:
-        return check("recent-network-sample", "最近故障留证", "warn", f"最近样本 {age_seconds}s 前，采样可能停了。", "检查 Pi crontab 和 runtime/incidents/network-incident-recorder.cron.log。")
-    if failed:
-        return check("recent-network-sample", "最近故障留证", "bad", f"{', '.join(failed)} 失败；样本 {age_seconds}s 前。", "按失败项从低层往上查：gateway、Pi、DNS、Mihomo。")
-    if warned:
-        return check("recent-network-sample", "最近故障留证", "warn", f"{', '.join(warned)} 警告；样本 {age_seconds}s 前。", "先看警告项对应的链路。")
-    return check("recent-network-sample", "最近故障留证", "ok", f"网关、Pi、卧室 WRT、DNS、Mihomo 最近 {age_seconds}s 内可达。")
-
-
 def parse_ping_summary(text: str) -> dict[str, float | int | None]:
     packet_loss = None
     avg = None
@@ -522,6 +388,9 @@ def parse_station_dump(text: str) -> list[dict[str, Any]]:
         signal = re.search(r"signal:\s*(-?\d+)", line)
         if signal:
             current["signal"] = int(signal.group(1))
+        inactive = re.search(r"inactive time:\s*(\d+)", line)
+        if inactive:
+            current["inactive_ms"] = int(inactive.group(1))
         tx = re.search(r"tx bitrate:\s*([\d.]+)", line)
         if tx:
             current["tx_mbps"] = float(tx.group(1))
@@ -557,17 +426,18 @@ def weak_wifi_items(stations: list[dict[str, Any]], names: dict[str, str], thres
     weak = []
     for station in stations:
         signal = station.get("signal")
-        tx = station.get("tx_mbps")
-        if signal is None:
+        inactive_ms = int(station.get("inactive_ms") or 0)
+        if signal is None or inactive_ms > 30_000:
             continue
-        if int(signal) <= threshold or (tx is not None and float(tx) <= 24):
+        if int(signal) <= threshold:
             mac = str(station.get("mac") or "")
             weak.append({
                 "mac": mac,
                 "label": names.get(mac) or mac_suffix(mac),
                 "signal": signal,
-                "tx_mbps": tx,
+                "tx_mbps": station.get("tx_mbps"),
                 "rx_mbps": station.get("rx_mbps"),
+                "inactive_ms": inactive_ms,
             })
     return weak
 
@@ -843,7 +713,7 @@ async def probe_devices(metadata: dict[str, Any]) -> dict[str, Any]:
             detail = "保留设备，当前未在线"
         elif presence in {"optional", "intermittent"}:
             status = "sleeping"
-            detail = "可离线/间歇在线"
+            detail = "离线（间歇设备）"
         else:
             status = "offline"
             detail = "未在线"
@@ -1035,12 +905,6 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     facts: dict[str, Any] = {}
     names = device_names_by_mac(metadata)
-    reboot = router_reboot_check()
-    if reboot:
-        checks.append(reboot)
-    checks.append(incident_sample_check())
-    checks.append(wan_recovery_check())
-
     command = (
         "echo __PING_CN__; ping -c 4 -W 2 223.5.5.5 2>/dev/null || true; "
         "echo __PING_CF__; ping -c 4 -W 2 1.1.1.1 2>/dev/null || true; "

@@ -25,25 +25,39 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install --upgrade pyyaml
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/ops/frontend/package-lock.json
+
+      - name: Check Console
+        working-directory: apps/ops/frontend
+        run: |
+          npm ci
+          npm run check
+          npm run build
+
       - name: Compile Python
-        run: python -m compileall -q tools modules
+        run: python -m compileall -q tools apps/ops
 
       - name: Public privacy scan
         run: ./homenet privacy --scope public --format json
 
-      - name: Example CI
+      - name: Validate examples
         run: |
-          ./homenet ci --instance instances/example-openwrt-pi --format json
-          ./homenet ci --instance instances/example-openwrt-only --format json
+          ./homenet check --instance instances/example-openwrt-pi --format json
+          ./homenet check --instance instances/example-openwrt-only --format json
 
       - name: Package manifest
-        run: ./homenet package --instance instances/example-openwrt-pi --format json
+        run: ./homenet package --format json
 
       - name: Export package
-        run: ./homenet package --instance instances/example-openwrt-pi --output-dir /tmp/homenet-public --force
+        run: ./homenet package --output-dir /tmp/homenet-public --force
 
       - name: Package check
         run: ./homenet package-check --dir /tmp/homenet-public --format json
 
-      - name: Package smoke
-        run: ./homenet package-smoke --dir /tmp/homenet-public --format json
+      - name: Publish check
+        run: ./homenet publish-check --dir /tmp/homenet-public --format json

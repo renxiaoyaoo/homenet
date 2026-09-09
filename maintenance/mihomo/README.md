@@ -19,15 +19,15 @@
 install -m 600 /home/pi/network/maintenance/mihomo/mihomo-update.env.example /home/pi/.config/secrets/mihomo-update.env
 ```
 
-`MIHOMO_UPDATE_ENV=/path/to/file` 可以覆盖默认路径。仓库内的 `maintenance/mihomo/mihomo-update.env` 只保留公开占位值，作为旧部署兼容 fallback，不应放真实 token 或 controller secret。
+`MIHOMO_UPDATE_ENV=/path/to/file` 可以覆盖默认路径。
 
 状态文件在 `/home/pi/network/maintenance/state/mihomo-config-update/`：
 
 - `config.etag`：最近下载到本地文件的远端 ETag
 - `headers`：最近一次下载响应头
-- `lock/`：更新进程锁目录
+- `update.lock`：由 `flock` 管理的进程锁；进程退出或异常终止后自动释放
 
-systemd timer 每 60 秒执行一次检查。脚本按 `config.etag` 发 `If-None-Match`，服务端返回 `304` 或相同 ETag 时直接跳过。
+systemd timer 每 15 分钟执行一次检查。脚本按 `config.etag` 发 `If-None-Match`，服务端返回 `304` 或相同 ETag 时直接跳过。
 
 如果本地文件已经是新内容，但运行中的 Mihomo 还没应用，可以手动执行一次：
 
@@ -53,13 +53,6 @@ bash /home/pi/network/maintenance/mihomo/update-mihomo-config.sh --force
 ```text
 /etc/systemd/system/mihomo-config-update.service
 /etc/systemd/system/mihomo-config-update.timer
-```
-
-固定名备份：
-
-```sh
-sudo cp /etc/systemd/system/mihomo-config-update.service /etc/systemd/system/mihomo-config-update.service.bak
-sudo cp /etc/systemd/system/mihomo-config-update.timer /etc/systemd/system/mihomo-config-update.timer.bak
 ```
 
 从仓库恢复到系统：

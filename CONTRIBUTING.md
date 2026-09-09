@@ -1,47 +1,16 @@
 # Contributing
 
-HomeNet is a review-first home network operations project. Keep changes
-small, explain the operational reason, and preserve the public/private boundary.
+Keep HomeNet small. A change must support initialization, deployment generation, validation, diagnosis, routing, privacy, packaging, or HomeNet Ops. Do not add speculative planners, compatibility aliases, duplicate status models, or commands that only describe future work.
 
-## Before Opening A Change
-
-Run the public gates from the repository root:
+Before submitting:
 
 ```sh
+python3 -m compileall -q tools
+./homenet check --instance instances/example-openwrt-pi
+./homenet check --instance instances/example-openwrt-only
 ./homenet privacy --scope public
-./homenet ci --instance instances/example-openwrt-pi
-./homenet ci --instance instances/example-openwrt-only
+./homenet package --output-dir /tmp/homenet-public --force
+./homenet publish-check --dir /tmp/homenet-public
 ```
 
-For package or release changes, also run:
-
-```sh
-./homenet package --instance instances/example-openwrt-pi --output-dir /tmp/homenet-public
-./homenet publish-check --dir /tmp/homenet-public --work-dir /tmp/homenet-publish-check --force
-```
-
-## Keep Private Data Out
-
-Do not commit:
-
-- real deployment instances outside `instances/example-*`
-- Wi-Fi passwords, API tokens, private keys, cookies, sessions, or proxy subscriptions
-- runtime data, service databases, certificates, backups, or generated caches
-- private Cloudflare Workers, private subscription projects, or local operator overrides
-
-Use placeholders such as `example.net`, `192.168.50.0/24`, `REPLACE_WITH_*`,
-and `password1` in examples and tests.
-
-## Live Network Changes
-
-HomeNet public core is read-only by default. Live changes belong to source
-tools such as OpenWrt, Mihomo, AdGuard, Kuma, Cloudflare, WireGuard, Docker, or
-systemd until a module executor is explicitly write-enabled and guarded.
-
-When adding a future write path, include:
-
-- source-tool ownership
-- dry-run behavior
-- backup or rollback contract
-- live verification command
-- privacy/secret handling
+Use placeholders in examples. Never commit a real instance, `.env`, token, subscription, private key, database, certificate, session, runtime state, backup, MAC address, account identifier, or private hostname.

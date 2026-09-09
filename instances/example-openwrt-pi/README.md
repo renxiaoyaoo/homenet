@@ -1,24 +1,11 @@
-# Example Instance: OpenWrt + Server
+# OpenWrt + Server Example
 
-This is a public example for the standard HomeNet profile.
-
-- OpenWrt owns Gateway, DHCP, Firewall, Wi-Fi, VLAN/network boundaries, and TProxy handoff.
-- A server runtime such as Pi, mini PC, or NAS owns AdGuard, Mihomo, HomeNet Ops, Uptime Kuma, WireGuard, and Cloudflare Tunnel.
-- Secrets are intentionally absent. Put Wi-Fi passwords, API tokens, proxy subscriptions, and private keys in local secret storage.
-
-First pass:
+Use this profile when a Pi, mini PC or NAS can run DNS, Proxy, monitoring and remote-access services.
 
 ```sh
-./homenet deploy --instance instances/example-openwrt-pi --force --check-idempotent
-./homenet check --instance instances/example-openwrt-pi
+./homenet init --yes --name my-home --profile openwrt-pi
+./homenet deploy --instance instances/my-home --output-dir runtime --force
+./homenet doctor --instance instances/my-home
 ```
 
-Review before live changes:
-
-```sh
-./homenet status --instance instances/example-openwrt-pi
-./homenet runbook --instance instances/example-openwrt-pi
-./homenet deploy --instance instances/example-openwrt-pi --dry-run
-./homenet rollback --instance instances/example-openwrt-pi
-./homenet apply --instance instances/example-openwrt-pi --dry-run
-```
+Edit the generated private instance before applying settings in OpenWrt or starting the server runtime.

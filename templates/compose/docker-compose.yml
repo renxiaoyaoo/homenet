@@ -1,20 +1,29 @@
-# Public HomeNet compose template.
-# This file is a starting point, not a captured live deployment.
-# Copy it into a private deployment directory and fill env.example locally.
-
 services:
   homenet-ops:
+    build:
+      context: ${HOMENET_ROOT:-/opt/homenet}/apps/ops
     image: ${HOMENET_OPS_IMAGE:-homenet-ops:latest}
     container_name: homenet-ops
     restart: unless-stopped
     network_mode: host
     environment:
-      HOMENET_INSTANCE: ${HOMENET_INSTANCE:-instances/example-openwrt-pi}
-      HOMENET_NETWORK_ROOT: ${HOMENET_NETWORK_ROOT:-/opt/homenet}
       TZ: ${HOMENET_TIMEZONE:-UTC}
       PORT: ${HOMENET_OPS_PORT:-9999}
+      OPENWRT_HOST: ${HOMENET_ROUTER_IP:-192.168.50.1}
+      HOMENET_SERVER_IP: ${HOMENET_SERVER_IP:-192.168.50.5}
+      MIHOMO_CONFIG: /mihomo-config/config.yaml
+      MIHOMO_CONFIG_WRITE: /mihomo-config/config.yaml
+      ROUTING_RULES_STORE: /runtime/routing/rules.json
+      ROUTING_RULE_DIR: /mihomo-config/rules
     volumes:
-      - ${HOMENET_NETWORK_ROOT:-/opt/homenet}:/workspace/homenet:ro
+      - ${HOME}/.ssh:/root/.ssh:ro
+      - ${HOMENET_INSTANCE:-/opt/homenet/instances/example-openwrt-pi}:/homenet-instance:ro
+      - ${HOMENET_ROOT:-/opt/homenet}/tools:/tools:ro
+      - ${HOMENET_ROOT:-/opt/homenet}/schemas:/schemas:ro
+      - ./runtime:/runtime
+      - ./mihomo:/mihomo-config
+      - ./adguard/conf:/adguard-conf:ro
+      - ${HOMENET_ROOT:-/opt/homenet}/maintenance/state:/maintenance-state:ro
 
   adguardhome:
     image: adguard/adguardhome:latest

@@ -9,20 +9,16 @@ GEOSITE="${ROOT_DIR}/mihomo/GeoSite.dat"
 GEOSITE_URL="${MIHOMO_GEOSITE_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat}"
 GEOSITE_MAX_AGE_DAYS="${MIHOMO_GEOSITE_MAX_AGE_DAYS:-7}"
 ENV_FILE="${MIHOMO_UPDATE_ENV:-/home/pi/.config/secrets/mihomo-update.env}"
-LEGACY_ENV_FILE="${ROOT_DIR}/maintenance/mihomo/mihomo-update.env"
 STATE_DIR="${ROOT_DIR}/maintenance/state/mihomo-config-update"
 ETAG_FILE="${STATE_DIR}/config.etag"
 HEADERS="${STATE_DIR}/headers"
-LOCK_DIR="${STATE_DIR}/lock"
+LOCK_FILE="${STATE_DIR}/update.lock"
 CHECK_ONLY=0
 FORCE_RELOAD=0
 
 if [[ -f "${ENV_FILE}" ]]; then
   # shellcheck disable=SC1090
   source "${ENV_FILE}"
-elif [[ -f "${LEGACY_ENV_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  source "${LEGACY_ENV_FILE}"
 fi
 
 CONFIG_URL="${MIHOMO_CONFIG_URL:?set MIHOMO_CONFIG_URL}"
@@ -39,15 +35,11 @@ esac
 
 mkdir -p "${STATE_DIR}"
 
-if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
+exec 9>"${LOCK_FILE}"
+if ! flock -n 9; then
   echo "mihomo config update already running"
   exit 0
 fi
-
-cleanup() {
-  rm -rf "${LOCK_DIR}"
-}
-trap cleanup EXIT
 
 reload_mihomo() {
   curl -fsS -X PUT "http://127.0.0.1:9090/configs" \

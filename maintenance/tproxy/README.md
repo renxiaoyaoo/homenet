@@ -39,17 +39,6 @@ UDP/443 不在 TProxy 脚本侧按域名或 IP 段额外放行。fake-ip 场景�
 /etc/systemd/system/mihomo-tproxy-route.service
 ```
 
-## 固定名备份
-
-不要带时间戳，便于出问题时直接知道该回滚哪个文件：
-
-```bash
-sudo cp /usr/local/bin/mihomo-gateway.sh /usr/local/bin/mihomo-gateway.sh.bak
-sudo cp /usr/local/bin/mihomo-tproxy-route.sh /usr/local/bin/mihomo-tproxy-route.sh.bak
-sudo cp /etc/systemd/system/mihomo-gateway.service /etc/systemd/system/mihomo-gateway.service.bak
-sudo cp /etc/systemd/system/mihomo-tproxy-route.service /etc/systemd/system/mihomo-tproxy-route.service.bak
-```
-
 ## 从仓库恢复到系统
 
 ```bash

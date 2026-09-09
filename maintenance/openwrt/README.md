@@ -44,5 +44,5 @@ rm -f /root/wifi-radio1-guard.sh /tmp/wifi-radio1-guard.log /tmp/wifi-radio1-gua
 完整架构、Wi-Fi 用途、Ops 检修网、验证和回滚边界维护在公开 runbook：
 
 ```text
-/home/pi/network/docs/source-tool-runbook.md
+/home/pi/network/docs/maintenance.md
 ```

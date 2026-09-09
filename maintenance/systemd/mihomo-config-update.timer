@@ -1,9 +1,9 @@
 [Unit]
-Description=Run Mihomo config update check every minute
+Description=Run Mihomo config update check every 15 minutes
 
 [Timer]
 OnBootSec=1m
-OnUnitActiveSec=60s
+OnUnitActiveSec=15m
 AccuracySec=5s
 Persistent=true
 Unit=mihomo-config-update.service

@@ -18,8 +18,13 @@ fi
 CN_DNS_1="${ADGUARD_DOMESTIC_DNS_1:-119.29.29.29}"
 CN_DNS_2="${ADGUARD_DOMESTIC_DNS_2:-223.5.5.5}"
 DEFAULT_UPSTREAM="${ADGUARD_DEFAULT_UPSTREAM:-127.0.0.1:1053}"
-BACKUP="${OUT}.bak"
+BACKUP="${OUT}.previous"
 RELOAD=0
+
+cleanup() {
+  rm -f "${SRC}" "${TMP}" "${BACKUP}"
+}
+trap cleanup EXIT
 
 case "${1:-}" in
   --reload)
@@ -45,7 +50,6 @@ for url in "${LIST_URLS[@]}"; do
 done
 
 if [[ "${downloaded}" != "1" ]]; then
-  rm -f "${SRC}" "${TMP}"
   if [[ -s "${OUT}" ]]; then
     echo "adguard domestic upstreams download failed; keeping existing ${OUT}" >&2
     exit 0
@@ -78,7 +82,6 @@ ${DEFAULT_UPSTREAM}
 EOF
 
 if [[ -f "${OUT}" ]] && cmp -s "${TMP}" "${OUT}"; then
-  rm -f "${TMP}"
   echo "adguard domestic upstreams unchanged"
   exit 0
 fi

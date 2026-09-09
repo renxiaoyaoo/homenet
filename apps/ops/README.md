@@ -19,11 +19,11 @@ HomeNet Ops 是当前家庭网络的轻量 operations surface。它不替代 Upt
 
 ## 技术栈
 
-- 后端：`aiohttp`，继续复用现有 OpenWrt / Mihomo / AdGuard 采集逻辑，常驻模式下默认 15 秒采样一次。
+- 后端：`aiohttp`，继续复用现有 OpenWrt / Mihomo / AdGuard 采集逻辑；轻量状态默认 60 秒刷新，较重的网络诊断默认 5 分钟刷新。
 - 前端：`React + TypeScript + Vite`，源码在 `frontend/`，构建产物在 `static/`。
 - 视觉核心：React 页面内的 Overview、Topology、Services 和 Routing。
 - 运行方式：一个 `homenet-ops` 容器直接监听 `9999`，不再额外维护 gate。
-- 静态 metadata：通过只读挂载的 `/homenet-tools/homenet.py metadata` 生成 `homenet.metadata.v1`。部署时把私有 instance 目录挂载到 `/homenet-instance`。
+- 静态 metadata：通过只读挂载的 `/tools/homenet.py metadata` 生成 `homenet.metadata.v1`。部署时把私有 instance 目录挂载到 `/homenet-instance`。
 - Blueprint：Ops 从同一份 metadata 派生 `homenet.blueprint.v1` 摘要，展示 HomeNet 的 product contract、active/fallback capabilities、operational questions 和 Source of Truth。
 - 模块计划：从 `homenet.metadata.v1` 的 `module_plan` 派生，用于 Topology 的 Module Plan 和 Fix 的 module-level Checks / Rollback。
 
@@ -139,11 +139,13 @@ homenet-ops stop
 /home/pi/.local/bin/homenet-ops
 ```
 
-从本目录脚本安装：
+把命令链接到用户命令目录：
 
 ```bash
-install -m 755 /home/pi/network/apps/ops/homenet-ops.sh /home/pi/.local/bin/homenet-ops
+ln -sfn /home/pi/network/apps/ops/homenet-ops.sh /home/pi/.local/bin/homenet-ops
 ```
+
+在真实部署 workspace 中，命令优先使用根目录 `docker-compose.yml`；只有根目录没有 Compose 时，才使用应用目录的通用 Compose。
 
 运行方式：
 

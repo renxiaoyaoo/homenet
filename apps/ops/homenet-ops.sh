@@ -1,13 +1,14 @@
 #!/bin/sh
 set -eu
 
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
-  APP_DIR="$SCRIPT_DIR"
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
+WORKSPACE="${HOMENET_WORKSPACE:-$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)}"
+if [ -f "$WORKSPACE/docker-compose.yml" ]; then
+  COMPOSE_FILE="$WORKSPACE/docker-compose.yml"
 else
-  APP_DIR="${HOMENET_OPS_DIR:-/home/pi/network/apps/ops}"
+  COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 fi
-COMPOSE_FILE="$APP_DIR/docker-compose.yml"
 SERVICE="homenet-ops"
 URL="${HOMENET_OPS_URL:-http://127.0.0.1:9999}"
 

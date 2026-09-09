@@ -267,7 +267,6 @@ type HomeIncident = {
 
 function buildHomeIncident(state: State): HomeIncident {
   const get = (id: string) => checkById(state, id);
-  const wanRecovery = get("wan-recovery");
   const wan = get("wan-domestic") || get("gateway-wan");
   const domestic = get("http-domestic");
   const google = get("http-google");
@@ -276,35 +275,12 @@ function buildHomeIncident(state: State): HomeIncident {
   const mihomo = get("mihomo-current");
   const pi = get("server-runtime");
   const dns = get("dns-proxy");
-  const reboot = get("router-reboot-detected");
 
   const evidence = (...items: Array<ConsoleLayer | undefined>) =>
     items
       .filter(Boolean)
       .slice(0, 4)
       .map((item) => `${item!.title || item!.id}: ${item!.detail || label(item!.status)}`);
-
-  if (wanRecovery && cls(wanRecovery.status) === "bad") {
-    return {
-      status: "bad",
-      title: "宽带恢复失败",
-      summary: "主路由拿到地址但外网不通，自动只重拨 WAN 也没有恢复。",
-      action: "进 OpenWrt 看 WAN/PPPoE；必要时手动重拨或重启主路由。",
-      entry: wanRecovery.entry || "http://192.168.10.1/cgi-bin/luci",
-      evidence: evidence(wanRecovery, wan, domestic)
-    };
-  }
-
-  if (wanRecovery && cls(wanRecovery.status) === "warn") {
-    return {
-      status: "warn",
-      title: "宽带疑似假在线",
-      summary: "网关还活着，但公网连通异常。系统会连续确认后只重拨 WAN，不动 Wi-Fi/Pi/Docker。",
-      action: "先等自动重拨；如果仍无网，再进 OpenWrt 处理 WAN。",
-      entry: wanRecovery.entry || "http://192.168.10.1/cgi-bin/luci",
-      evidence: evidence(wanRecovery, wan, domestic)
-    };
-  }
 
   if (statusIsProblem(wan?.status) || statusIsProblem(domestic?.status)) {
     return {
@@ -313,7 +289,7 @@ function buildHomeIncident(state: State): HomeIncident {
       summary: "国内直连或主路由 WAN 不正常，这类问题通常不是代理、不是 Home Assistant。",
       action: "先看 OpenWrt 的 WAN、PPPoE、DNS；不要先重启 Pi 上的服务。",
       entry: wan?.entry || domestic?.entry || "http://192.168.10.1/cgi-bin/luci",
-      evidence: evidence(wan, domestic, reboot)
+      evidence: evidence(wan, domestic)
     };
   }
 
@@ -641,7 +617,7 @@ function DevicesView({ state, query, setQuery }: { state: State; query: string; 
       <div className="summaryStrip">
         <span><b>{summary.total ?? devices.length}</b> 总数</span>
         <span><b>{summary.online ?? 0}</b> 在线</span>
-        <span><b>{summary.standby ?? 0}</b> 可离线</span>
+        <span><b>{summary.standby ?? 0}</b> 间歇设备离线</span>
         <span><b>{summary.attention ?? 0}</b> 注意</span>
       </div>
       <label className="search">

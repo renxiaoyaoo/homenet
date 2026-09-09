@@ -38,5 +38,4 @@ services:
       - ${HOMENET_WORKSPACE:-/home/pi/network}/maintenance/state:/maintenance-state:ro
       - ${HOMENET_INSTANCE_PATH:-/home/pi/network/instances/example-openwrt-pi}:/homenet-instance:ro
       - ${HOMENET_WORKSPACE:-/home/pi/network}/tools:/tools:ro
-      - ${HOMENET_WORKSPACE:-/home/pi/network}/modules:/modules:ro
       - ${HOMENET_WORKSPACE:-/home/pi/network}/schemas:/schemas:ro

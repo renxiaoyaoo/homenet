@@ -79,7 +79,16 @@ if [[ "${FORCE_RELOAD}" == "1" ]]; then
   exit 0
 fi
 
-curl_args=(-fsSL -D "${HEADERS}" -o "${TMP}")
+curl_args=(
+  -fsSL
+  --connect-timeout 15
+  --max-time 60
+  --retry 2
+  --retry-delay 2
+  --retry-all-errors
+  -D "${HEADERS}"
+  -o "${TMP}"
+)
 
 if [[ "${CHECK_ONLY}" == "1" && -s "${ETAG_FILE}" ]]; then
   curl_args+=(-H "If-None-Match: $(cat "${ETAG_FILE}")")

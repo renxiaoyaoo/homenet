@@ -4,6 +4,7 @@ TAG=wifi-radio1-guard
 RADIO=radio1
 LOCK=/tmp/wifi-radio1-guard.lock
 LAST=/tmp/wifi-radio1-guard.last
+LAST_ATTEMPT=/tmp/wifi-radio1-guard.attempt
 
 [ "$(uci -q get wireless.radio1.disabled)" = "1" ] && exit 0
 
@@ -13,35 +14,26 @@ UPTIME="$(cut -d. -f1 /proc/uptime 2>/dev/null)"
 mkdir "$LOCK" 2>/dev/null || exit 0
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
-bad=0
-reason=""
 status="$(wifi status "$RADIO" 2>/dev/null)"
-echo "$status" | grep -q '"up": true' || { bad=1; reason="$reason radio1-not-up"; }
-echo "$status" | grep -q '"retry_setup_failed": false' || { bad=1; reason="$reason retry-setup-failed"; }
-
-if [ "$(uci -q get wireless.wifinet1.disabled)" != "1" ]; then
-    iw dev wlan1 info 2>/dev/null | grep -q 'type AP' || { bad=1; reason="$reason wlan1-not-ap"; }
+if echo "$status" | grep -q '"up": true' &&
+    echo "$status" | grep -q '"retry_setup_failed": false'; then
+    exit 0
 fi
 
-if [ "$(uci -q get wireless.rx_relay_5g.disabled)" != "1" ]; then
-    iw dev wlan1-2 info 2>/dev/null | grep -q 'type AP' || { bad=1; reason="$reason relay-not-ap"; }
-fi
+now="$(date +%s)"
+previous="$(cat "$LAST_ATTEMPT" 2>/dev/null || echo 0)"
+[ $((now - previous)) -lt 600 ] && exit 0
+echo "$now" > "$LAST_ATTEMPT"
 
-if [ "$bad" = "1" ]; then
-    logger -t "$TAG" "radio1 unhealthy:$reason; restarting radio1"
-    {
-        date
-        echo "unhealthy:$reason"
-        echo "restarting radio1"
-    } > "$LAST"
-    wifi down "$RADIO"
-    sleep 2
-    wifi up "$RADIO"
-    sleep 8
-    wifi status "$RADIO" >> "$LAST" 2>&1
+logger -t "$TAG" "radio1 failed to start; retrying wifi up radio1"
+wifi up "$RADIO"
+sleep 5
+status="$(wifi status "$RADIO" 2>/dev/null)"
+if echo "$status" | grep -q '"up": true' &&
+    echo "$status" | grep -q '"retry_setup_failed": false'; then
+    echo "$(date): radio1 recovered" > "$LAST"
+    logger -t "$TAG" "radio1 recovered"
 else
-    {
-        date
-        echo "ok"
-    } > "$LAST"
+    echo "$(date): radio1 still down" > "$LAST"
+    logger -t "$TAG" "radio1 still down; next retry in 10 minutes"
 fi

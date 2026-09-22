@@ -57,6 +57,38 @@ policy_enabled() {
     ip route show table 100 2>/dev/null | grep -q "default via $PI"
 }
 
+wan_last_check=0
+wan_failures=0
+wan_last_redial=-1800
+
+check_wan() {
+  now="$(cut -d. -f1 /proc/uptime)"
+  [ "$now" -ge 300 ] || return 0
+  [ $((now - wan_last_check)) -ge 60 ] || return 0
+  wan_last_check="$now"
+
+  if [ "$(ubus call network.interface.wan status 2>/dev/null | jsonfilter -e '@.up' 2>/dev/null)" != "true" ]; then
+    wan_failures=0
+    return 0
+  fi
+
+  if ping -c1 -W2 223.5.5.5 >/dev/null 2>&1 ||
+     ping -c1 -W2 119.29.29.29 >/dev/null 2>&1; then
+    wan_failures=0
+    return 0
+  fi
+
+  wan_failures=$((wan_failures + 1))
+  if [ "$wan_failures" -ge 5 ] && [ $((now - wan_last_redial)) -ge 1800 ]; then
+    logger -t mihomo-watchdog "WAN reports up but both direct probes failed; redialing WAN once"
+    wan_last_redial="$now"
+    wan_failures=0
+    ifdown wan
+    sleep 2
+    ifup wan
+  fi
+}
+
 while true; do
   if ping -c1 -W1 "$PI" >/dev/null 2>&1 && check_mihomo; then
     if [ "$(cat "$STATE" 2>/dev/null || true)" != "on" ] || ! policy_enabled; then
@@ -76,5 +108,6 @@ while true; do
     fi
   fi
 
+  check_wan
   sleep "$INTERVAL"
 done

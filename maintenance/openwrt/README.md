@@ -6,7 +6,8 @@
 
 - `mihomo-policy-on.sh`：把需要代理的 LAN 流量策略路由到 Pi。
 - `mihomo-policy-off.sh`：移除 LAN 到 Pi 的策略路由。
-- `wifi-radio1-guard.sh`：主路由 5G radio1 自愈脚本。用于处理停电后来电时 `radio1` 偶发 `retry_setup_failed`、`wlan1` 未以 AP 方式起来、或 `Room backhaul` 未起来的问题。线上安装位置是 `/root/wifi-radio1-guard.sh`，cron 每 2 分钟运行一次。
+- `mihomo-watchdog.sh`：维持 Pi 代理/DNS 故障回退；另在 WAN 已连接但路由器本机对两个公网地址连续约 5 分钟不可达时，仅重拨 WAN 一次，重拨间隔至少 30 分钟。不会重启路由器或无线。检查记录：`logread | grep mihomo-watchdog`。
+- `wifi-radio1-guard.sh`：主路由 5G radio1 启动失败后的重试。开机 2 分钟后才检查；仅在 radio1 未起来时执行 `wifi up radio1`，两次尝试至少间隔 10 分钟，不重启已在线的无线。线上安装位置是 `/root/wifi-radio1-guard.sh`，cron 每 2 分钟运行一次。
 - `presence-report.sh`：OpenWrt / WRT Room presence 上报脚本。线上 cron 每 2 分钟运行一次，减少日志噪声，同时保留“谁在家、连在哪个 AP”的日常判断。
 
 ## 主路由 5G 自愈
@@ -24,14 +25,14 @@
 cat /tmp/wifi-radio1-guard.last
 wifi status radio1
 iw dev wlan1 info
-iw dev wlan1-2 info
+iw dev
 ```
 
 回滚：
 
 ```sh
 crontab -l | grep -v wifi-radio1-guard.sh | crontab -
-rm -f /root/wifi-radio1-guard.sh /tmp/wifi-radio1-guard.log /tmp/wifi-radio1-guard.last
+rm -f /root/wifi-radio1-guard.sh /tmp/wifi-radio1-guard.log /tmp/wifi-radio1-guard.last /tmp/wifi-radio1-guard.attempt
 /etc/init.d/cron restart
 ```
 

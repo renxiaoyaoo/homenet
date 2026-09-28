@@ -4,16 +4,20 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import hashlib
 import ipaddress
 import json
 import os
 import shutil
 import socket
+import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -135,6 +139,35 @@ def tracked_probe(target: str) -> tuple[bool, str]:
         return False, type(exc).__name__
 
 
+def log_marker_probe(pattern: str, marker: str, max_age_hours: float) -> tuple[bool, str]:
+    if not marker or max_age_hours <= 0:
+        return False, "invalid log check"
+    files = [Path(name) for name in glob.glob(pattern)]
+    if not files:
+        return False, "no log"
+    latest = max(files, key=lambda path: path.stat().st_mtime)
+    if time.time() - latest.stat().st_mtime > max_age_hours * 3600:
+        return False, "log is stale"
+    with latest.open("rb") as log:
+        log.seek(max(0, latest.stat().st_size - 1024 * 1024))
+        found = marker.encode() in log.read()
+    return found, "success marker found" if found else "success marker missing"
+
+
+def sqlite_scalar_probe(path: str, query: str, expected: str) -> tuple[bool, str]:
+    if not query.lstrip().lower().startswith("select "):
+        return False, "query must be SELECT"
+    uri = "file:" + urllib.parse.quote(str(Path(path).resolve())) + "?mode=ro"
+    db = sqlite3.connect(uri, uri=True, timeout=2)
+    try:
+        db.execute("PRAGMA query_only = ON")
+        row = db.execute(query).fetchone()
+    finally:
+        db.close()
+    value = str(row[0]) if row else "no result"
+    return value == expected, f"value {value}, expected {expected}"
+
+
 def live_checks(state: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     flags = module_flags(state)
@@ -148,18 +181,26 @@ def live_checks(state: dict[str, Any]) -> list[dict[str, Any]]:
             url = str(service.get("local_url") or "")
             if url.startswith(("http://", "https://")):
                 checks = [{"type": "http", "target": url}]
-        for check in checks[:1]:
+        for check in checks:
             kind = str(check.get("type") or "")
             target = str(check.get("target") or "")
-            if kind in {"http", "external"} and target.startswith(("http://", "https://")):
-                ok, detail = http_probe(target)
-            elif kind == "tcp":
-                ok, detail = tcp_probe(target)
-            elif kind == "tracked":
-                ok, detail = tracked_probe(target)
-            else:
-                continue
-            rows.append({"service": service.get("id"), "ok": ok, "detail": detail})
+            try:
+                if kind in {"http", "external"} and target.startswith(("http://", "https://")):
+                    ok, detail = http_probe(target)
+                elif kind == "tcp":
+                    ok, detail = tcp_probe(target)
+                elif kind == "tracked":
+                    ok, detail = tracked_probe(target)
+                elif kind == "log-marker":
+                    ok, detail = log_marker_probe(target, str(check.get("marker") or ""), float(check.get("max_age_hours") or 36))
+                elif kind == "sqlite-scalar":
+                    ok, detail = sqlite_scalar_probe(target, str(check.get("query") or ""), str(check.get("expected") or ""))
+                else:
+                    continue
+            except (OSError, ValueError, sqlite3.Error) as exc:
+                ok, detail = False, type(exc).__name__
+            label = str(service.get("id"))
+            rows.append({"service": f"{label}:{kind}" if len(checks) > 1 else label, "ok": ok, "detail": detail})
     ops = next((s for s in state.get("services", []) if s.get("id") == "homenet-ops"), None)
     if ops:
         url = str(ops.get("local_url") or "").rstrip("/") + "/api/health"

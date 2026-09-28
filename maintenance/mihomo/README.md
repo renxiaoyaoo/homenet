@@ -6,7 +6,7 @@
 
 这些脚本只负责本机 Mihomo 服务，不参与 Cloudflare Worker 构建，也不读取其他服务目录里的内部文件。
 
-`update-mihomo-config.sh` 在成功应用新配置后，还会主动清理 `fakeip` 和 `dns` 缓存，避免旧解析状态继续影响家里本机流量。
+`update-mihomo-config.sh` 在成功应用新配置后清理 Mihomo DNS 缓存，但保留持久化 Fake-IP 映射，避免客户端仍缓存旧地址时发生域名错配。家庭自己的直连域名应加入 `fake-ip-filter`，直接返回真实地址。
 
 本机私有更新参数默认放在 `/home/pi/.config/secrets/mihomo-update.env`：
 

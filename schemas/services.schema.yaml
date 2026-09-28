@@ -31,7 +31,10 @@ fields:
           type: list
           item:
             fields:
-              type: enum(http, tcp, udp, tracked, external)
+              type: enum(http, tcp, udp, tracked, external, log-marker, sqlite-scalar)
               target: string
               expected: string
+              marker: string
+              max_age_hours: string
+              query: string
         notes: string

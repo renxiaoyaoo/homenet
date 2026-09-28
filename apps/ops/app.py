@@ -1,4 +1,5 @@
 import asyncio
+import ipaddress
 import json
 import os
 import re
@@ -18,6 +19,7 @@ MIHOMO_HTTP_PROXY = os.getenv("MIHOMO_HTTP_PROXY", "http://192.168.10.5:7890")
 MIHOMO_CONFIG = os.getenv("MIHOMO_CONFIG", "/mihomo-config.yaml")
 MIHOMO_RUNTIME_CONFIG = os.getenv("MIHOMO_RUNTIME_CONFIG", "/root/.config/mihomo/config.yaml")
 MIHOMO_CONFIG_WRITE = Path(os.getenv("MIHOMO_CONFIG_WRITE", "/mihomo-config/config.yaml")).resolve()
+APPLE_HOME_HUB_IP = os.getenv("APPLE_HOME_HUB_IP", "").strip()
 ROUTING_RULES_STORE = Path(os.getenv("ROUTING_RULES_STORE", "/runtime/routing/rules.json")).resolve()
 ROUTING_RULE_DIR = Path(os.getenv("ROUTING_RULE_DIR", "/mihomo-rules")).resolve()
 REFRESH = float(os.getenv("REFRESH", "60"))
@@ -147,7 +149,22 @@ def attach_ports(services: list[dict[str, Any]], ports: list[dict[str, Any]]) ->
     return services
 
 
-def tcp_ports_from_proc(paths: tuple[str, ...] = ("/proc/net/tcp", "/proc/net/tcp6")) -> set[int]:
+def proc_address_is_loopback(value: str) -> bool:
+    address = value.rsplit(":", 1)[0]
+    try:
+        raw = bytes.fromhex(address)
+        if len(raw) == 4:
+            packed = raw[::-1]
+        elif len(raw) == 16:
+            packed = b"".join(raw[index:index + 4][::-1] for index in range(0, 16, 4))
+        else:
+            return False
+        return ipaddress.ip_address(packed).is_loopback
+    except ValueError:
+        return False
+
+
+def tcp_ports_from_proc(paths: tuple[str, ...] = ("/proc/net/tcp", "/proc/net/tcp6"), include_loopback: bool = True) -> set[int]:
     ports: set[int] = set()
     for path in paths:
         try:
@@ -156,7 +173,7 @@ def tcp_ports_from_proc(paths: tuple[str, ...] = ("/proc/net/tcp", "/proc/net/tc
             continue
         for line in lines:
             parts = line.split()
-            if len(parts) >= 4 and parts[3] == "0A":
+            if len(parts) >= 4 and parts[3] == "0A" and (include_loopback or not proc_address_is_loopback(parts[1])):
                 try:
                     ports.add(int(parts[1].rsplit(":", 1)[1], 16))
                 except ValueError:
@@ -281,7 +298,9 @@ async def probe_services(metadata: dict[str, Any]) -> tuple[list[dict[str, Any]]
                 tasks.append(probe_http(session, service))
             else:
                 first_tcp = next((p for p in ports if p.get("service_key") == service.get("id") and "tcp" in str(p.get("proto", ""))), None)
-                if first_tcp:
+                # A bare connect-and-close makes sshd log a failed handshake every minute.
+                # Local listeners and the router's real SSH diagnostic cover port 22.
+                if first_tcp and str(first_tcp.get("port") or "").split("-", 1)[0] != "22":
                     tasks.append(probe_tcp(service, first_tcp))
         for result in await asyncio.gather(*tasks, return_exceptions=True):
             if isinstance(result, Exception):
@@ -422,12 +441,17 @@ def device_names_by_mac(metadata: dict[str, Any]) -> dict[str, str]:
     return result
 
 
-def weak_wifi_items(stations: list[dict[str, Any]], names: dict[str, str], threshold: int = -70) -> list[dict[str, Any]]:
+def weak_wifi_items(
+    stations: list[dict[str, Any]],
+    names: dict[str, str],
+    threshold: int = -82,
+    max_inactive_ms: int = 5_000,
+) -> list[dict[str, Any]]:
     weak = []
     for station in stations:
         signal = station.get("signal")
         inactive_ms = int(station.get("inactive_ms") or 0)
-        if signal is None or inactive_ms > 30_000:
+        if signal is None or inactive_ms > max_inactive_ms:
             continue
         if int(signal) <= threshold:
             mac = str(station.get("mac") or "")
@@ -873,7 +897,7 @@ async def mihomo_snapshot() -> dict[str, Any]:
     secret = load_mihomo_secret()
     headers = {"Authorization": f"Bearer {secret}"} if secret else {}
     timeout = aiohttp.ClientTimeout(total=3)
-    result: dict[str, Any] = {"ok": False, "groups": [], "connections": 0, "top_chains": []}
+    result: dict[str, Any] = {"ok": False, "groups": [], "connections": 0, "top_chains": [], "apple_home_hub": []}
     async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
         async with session.get(f"{MIHOMO_URL}/proxies") as resp:
             proxies = await resp.json()
@@ -891,6 +915,17 @@ async def mihomo_snapshot() -> dict[str, Any]:
             for row in rows:
                 chain = ">".join(row.get("chains") or []) or "unknown"
                 chains[chain] = chains.get(chain, 0) + 1
+                metadata = row.get("metadata") or {}
+                host = str(metadata.get("host") or "").lower()
+                if APPLE_HOME_HUB_IP and metadata.get("sourceIP") == APPLE_HOME_HUB_IP and (
+                    host.endswith("push.apple.com") or host.endswith("icloud.com")
+                ):
+                    result["apple_home_hub"].append({
+                        "host": host,
+                        "port": str(metadata.get("destinationPort") or ""),
+                        "network": metadata.get("network") or "",
+                        "chain": chain,
+                    })
             result["top_chains"] = [
                 {"chain": chain, "count": count}
                 for chain, count in sorted(chains.items(), key=lambda item: item[1], reverse=True)[:6]
@@ -909,7 +944,7 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
         "echo __PING_CN__; ping -c 4 -W 2 223.5.5.5 2>/dev/null || true; "
         "echo __PING_CF__; ping -c 4 -W 2 1.1.1.1 2>/dev/null || true; "
         "echo __MAIN_5G__; iw dev wlan1 station dump 2>/dev/null || true; "
-        "echo __RELAY__; iw dev wlan1-2 station dump 2>/dev/null || true"
+        "echo __RELAY__; iw dev wlan1-1 station dump 2>/dev/null || true"
     )
     try:
         text = await run_text_command(router_ssh_args(command), timeout=12)
@@ -931,7 +966,8 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
             "这个只作为参考；家庭网络是否异常主要看国内直连、Google/GitHub 代理路径和 DNS/Proxy。",
         ))
         main_weak = weak_wifi_items(parse_station_dump(extract_block(text, "__MAIN_5G__", "__RELAY__")), names)
-        relay_weak = weak_wifi_items(parse_station_dump(extract_block(text, "__RELAY__")), names, threshold=-68)
+        relay_stations = parse_station_dump(extract_block(text, "__RELAY__"))
+        relay_weak = weak_wifi_items(relay_stations, names, threshold=-80)
         facts["main_weak_clients"] = main_weak
         facts["relay_weak_clients"] = relay_weak
         if main_weak:
@@ -940,10 +976,13 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
         else:
             checks.append(check("wifi-weak-clients", "弱 Wi-Fi 客户端", "ok", "主路由 5G 未发现明显弱客户端。"))
         if relay_weak:
-            detail = ", ".join(f"{item['label']} {item['signal']}dBm/{item.get('tx_mbps') or '?'}Mbps" for item in relay_weak[:3])
+            detail = ", ".join(f"{item['label']} {item['signal']}dBm" for item in relay_weak[:3])
             checks.append(check("wifi-room-backhaul", "卧室回程质量", "warn", detail, "卧室整体慢时，优先考虑 WRT Room 与主路由之间的回程信号。"))
+        elif relay_stations:
+            signal = relay_stations[0].get("signal")
+            checks.append(check("wifi-room-backhaul", "卧室回程质量", "ok", f"WRT Room 当前 {signal}dBm，回程连接正常。"))
         else:
-            checks.append(check("wifi-room-backhaul", "卧室回程质量", "ok", "WRT Room 回程未发现明显弱信号。"))
+            checks.append(check("wifi-room-backhaul", "卧室回程质量", "warn", "未读取到 WRT Room 回程客户端。", "确认 RX-Relay-5G 关联状态。"))
     except Exception as exc:
         checks.append(check("router-speed-probe", "路由侧测速证据", "warn", f"{type(exc).__name__}: {exc}", "主路由 SSH 探测失败时先确认 OpenWrt 可达。"))
 
@@ -964,6 +1003,20 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
         conn_count = int(mihomo.get("connections") or 0)
         status = "warn" if conn_count >= 300 else "ok"
         checks.append(check("mihomo-current", "Mihomo 当前出口", status, f"{group_text}; connections={conn_count}", "外网慢时先看 PROXY/PROXY-JAPAN/AI-AUTO 当前选中节点。", "http://192.168.10.5:9090/ui/#/proxies"))
+        if APPLE_HOME_HUB_IP:
+            apns = [
+                row for row in mihomo.get("apple_home_hub", [])
+                if str(row.get("host") or "").endswith("push.apple.com")
+                and str(row.get("port") or "") in {"443", "5223"}
+            ]
+            proxied = [row for row in apns if str(row.get("chain") or "").upper() != "DIRECT"]
+            if proxied:
+                routes = ", ".join(f"{row['host']}:{row['port']} via {row['chain']}" for row in proxied[:3])
+                checks.append(check("apple-home-hub-apns", "Apple 家庭中枢远程链路", "bad", routes, "APNs 被代理会导致手机流量下家庭 App 无法控制；检查 push.apple.com 的 DIRECT 规则及优先级。"))
+            elif apns:
+                checks.append(check("apple-home-hub-apns", "Apple 家庭中枢远程链路", "ok", f"{apns[0]['host']}:{apns[0]['port']} via DIRECT"))
+            else:
+                checks.append(check("apple-home-hub-apns", "Apple 家庭中枢远程链路", "warn", "当前未发现 Apple TV 的 APNs 长连接。", "确认 Apple TV 已开机联网，并在家庭 App 的“家庭中枢与桥接器”中显示已连接。"))
     except Exception as exc:
         checks.append(check("mihomo-current", "Mihomo 当前出口", "warn", f"{type(exc).__name__}", "无法读取控制器时进入 Mihomo Dashboard。", "http://192.168.10.5:9090/ui/#/proxies"))
 
@@ -1050,7 +1103,7 @@ def build_console(metadata: dict[str, Any], services: list[dict[str, Any]], port
         for port in ports
         if "tcp" in str(port.get("proto", "")) and str(port.get("port") or "0").split("-", 1)[0].isdigit()
     }
-    unmanaged = sorted(tcp_ports_from_proc() - declared_tcp)
+    unmanaged = sorted(tcp_ports_from_proc(include_loopback=False) - declared_tcp)
     entries = []
     for key in ["homenet-ops", "openwrt-luci", "wrt-room-luci", "mihomo", "adguard", "home-assistant", "uptime-kuma", "wireguard"]:
         service = next((item for item in services if item.get("key") == key), None)

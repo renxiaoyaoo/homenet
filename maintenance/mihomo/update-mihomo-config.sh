@@ -47,9 +47,6 @@ reload_mihomo() {
     -H "Content-Type: application/json" \
     -d '{"path":"/root/.config/mihomo/config.yaml"}' >/dev/null
 
-  curl -fsS -X POST "http://127.0.0.1:9090/cache/fakeip/flush" \
-    -H "Authorization: Bearer ${SECRET}" >/dev/null || true
-
   curl -fsS -X POST "http://127.0.0.1:9090/cache/dns/flush" \
     -H "Authorization: Bearer ${SECRET}" >/dev/null || true
 }

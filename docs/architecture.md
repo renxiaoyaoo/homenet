@@ -22,4 +22,6 @@ OpenWrt 永远是网络边界和 DHCP 唯一事实源。常在线主机是可选
 - `devices.yaml`：固定 IP、MAC、主机名和在线预期。
 - `services.yaml`：服务、端口、入口、运行位置和检查方式。
 
+`check --live` 检查声明的服务入口；可选的 `log-marker` 检查最近一次任务日志是否成功，`sqlite-scalar` 对本地数据库执行只读 `SELECT`。未声明的任务不会被当作已验证。
+
 HomeNet Ops 使用同一 instance 生成设备、服务和拓扑，不维护第二份网络事实。

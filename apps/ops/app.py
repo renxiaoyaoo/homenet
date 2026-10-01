@@ -572,6 +572,19 @@ def parse_dnsmasq_check(text: str) -> dict[str, Any]:
     return check("router-dhcp", "DHCP / 路由 DNS", status, detail, "如果设备拿不到 IP 或显示无网络，先看 dnsmasq。")
 
 
+def parse_wifi_errors(text: str) -> dict[str, Any]:
+    events = [line.strip() for line in text.splitlines() if line.strip()]
+    if not events:
+        return check("wifi-errors", "近期无线错误", "ok", "最近 300 条路由日志未见关键无线失败。")
+    return check(
+        "wifi-errors",
+        "近期无线错误",
+        "warn",
+        f"最近 300 条路由日志发现 {len(events)} 条关键无线失败。",
+        "先查看 OpenWrt 系统日志；若反复出现 group key handshake failure，再检查 AP 和客户端兼容性。",
+    )
+
+
 def normalize_mac(value: str) -> str:
     return str(value or "").strip().lower()
 
@@ -813,6 +826,8 @@ async def probe_foundation_checks(metadata: dict[str, Any]) -> dict[str, Any]:
         "echo __DNSMASQ__; "
         "(/etc/init.d/dnsmasq enabled >/dev/null 2>&1 && echo enabled || echo disabled); "
         "/etc/init.d/dnsmasq status 2>/dev/null || true; "
+        "echo __WIFI_ERRORS__; "
+        "logread 2>/dev/null | tail -n 300 | grep -E 'group key handshake failed|GROUP_KEY_HANDSHAKE_TIMEOUT|retry_setup_failed|Failed to start hostapd' | tail -n 10 || true; "
         "echo __ROOM__; "
         f"ping -c 1 -W 1 {ROOM_AP_IP} >/dev/null 2>&1 && echo up || echo down"
     )
@@ -834,13 +849,15 @@ async def probe_foundation_checks(metadata: dict[str, Any]) -> dict[str, Any]:
     radio0_text = extract_block(text, "__RADIO0__", "__RADIO1__")
     radio_text = extract_block(text, "__RADIO1__", "__WIRELESS__")
     wireless_text = extract_block(text, "__WIRELESS__", "__DNSMASQ__")
-    dnsmasq_text = extract_block(text, "__DNSMASQ__", "__ROOM__")
+    dnsmasq_text = extract_block(text, "__DNSMASQ__", "__WIFI_ERRORS__")
+    wifi_errors_text = extract_block(text, "__WIFI_ERRORS__", "__ROOM__")
     room_text = extract_block(text, "__ROOM__")
 
     checks.append(parse_wan_check(wan_text))
     checks.append(parse_dnsmasq_check(dnsmasq_text))
     checks.append(parse_radio_check(radio0_text, "radio0", "主路由 2.4G radio", "IoT、Ops 或部分设备异常时，先看 2.4G radio。"))
     checks.append(parse_radio_check(radio_text, "radio1", "主路由 5G radio", "5G 异常时，先重启无线或查看 OpenWrt wireless 日志。"))
+    checks.append(parse_wifi_errors(wifi_errors_text))
 
     for wifi_key, ssid, band, purpose in expected_wifi_items(metadata):
         title = {
@@ -1069,7 +1086,7 @@ def build_console(metadata: dict[str, Any], services: list[dict[str, Any]], port
     foundation_checks = foundation_checks or {"checks": []}
     foundation_items = list(foundation_checks.get("checks") or [])
     foundation_by_id = {item.get("id"): item for item in foundation_items}
-    wifi_keys = ["radio0", "radio1", "wifi-main", "wifi-relay_5g", "wifi-iot", "wifi-guest", "wifi-ops"]
+    wifi_keys = ["radio0", "radio1", "wifi-errors", "wifi-main", "wifi-relay_5g", "wifi-iot", "wifi-guest", "wifi-ops"]
     wifi_status = domain_status([str((foundation_by_id.get(key) or {}).get("status") or "unknown") for key in wifi_keys])
     wifi_problem = first_problem([foundation_by_id.get(key) for key in wifi_keys if foundation_by_id.get(key)] or [])
     room_probe = str((foundation_by_id.get("room-ap") or {}).get("status") or "unknown")

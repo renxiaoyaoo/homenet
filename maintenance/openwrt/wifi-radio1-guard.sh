@@ -9,7 +9,7 @@ LAST_ATTEMPT=/tmp/wifi-radio1-guard.attempt
 [ "$(uci -q get wireless.radio1.disabled)" = "1" ] && exit 0
 
 UPTIME="$(cut -d. -f1 /proc/uptime 2>/dev/null)"
-[ -n "$UPTIME" ] && [ "$UPTIME" -lt 120 ] && exit 0
+[ -n "$UPTIME" ] && [ "$UPTIME" -lt 45 ] && exit 0
 
 mkdir "$LOCK" 2>/dev/null || exit 0
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
@@ -22,7 +22,7 @@ fi
 
 now="$(date +%s)"
 previous="$(cat "$LAST_ATTEMPT" 2>/dev/null || echo 0)"
-[ $((now - previous)) -lt 600 ] && exit 0
+[ $((now - previous)) -lt 180 ] && exit 0
 echo "$now" > "$LAST_ATTEMPT"
 
 logger -t "$TAG" "radio1 failed to start; retrying wifi up radio1"
@@ -35,5 +35,5 @@ if echo "$status" | grep -q '"up": true' &&
     logger -t "$TAG" "radio1 recovered"
 else
     echo "$(date): radio1 still down" > "$LAST"
-    logger -t "$TAG" "radio1 still down; next retry in 10 minutes"
+    logger -t "$TAG" "radio1 still down; next retry in 3 minutes"
 fi

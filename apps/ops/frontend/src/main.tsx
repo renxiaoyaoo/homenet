@@ -288,7 +288,7 @@ function buildHomeIncident(state: State): HomeIncident {
       title: "基础上网异常",
       summary: "国内直连或主路由 WAN 不正常，这类问题通常不是代理、不是 Home Assistant。",
       action: "先看 OpenWrt 的 WAN、PPPoE、DNS；不要先重启 Pi 上的服务。",
-      entry: wan?.entry || domestic?.entry || "http://192.168.10.1/cgi-bin/luci",
+      entry: wan?.entry || domestic?.entry,
       evidence: evidence(wan, domestic)
     };
   }
@@ -299,7 +299,7 @@ function buildHomeIncident(state: State): HomeIncident {
       title: "卧室覆盖不稳",
       summary: "主网络可能正常，但卧室 WRT 与主路由之间的无线回程偏弱，卧室设备会慢或断续。",
       action: "卧室出问题时先确认设备是否连到 WRT Room；长期解法是调整位置或换更稳定回程。",
-      entry: room?.entry || state.console?.room_side_entry || "http://192.168.10.2",
+      entry: room?.entry || state.console?.room_side_entry,
       evidence: evidence(room, wan, domestic)
     };
   }
@@ -310,7 +310,7 @@ function buildHomeIncident(state: State): HomeIncident {
       title: "代理路径异常",
       summary: "国内网络正常，但 Google/GitHub 或当前出口异常，问题集中在 Mihomo 节点/分流。",
       action: "打开 Mihomo，切换 PROXY / PROXY-JAPAN / AI-AUTO 当前节点。",
-      entry: mihomo?.entry || "http://192.168.10.5:9090/ui/#/proxies",
+      entry: mihomo?.entry,
       evidence: evidence(google, github, mihomo)
     };
   }
@@ -321,7 +321,7 @@ function buildHomeIncident(state: State): HomeIncident {
       title: "Pi 或 DNS/Proxy 服务异常",
       summary: "路由层正常，但 Pi 上的 DNS、代理、Docker 或应用可能有问题。",
       action: "先看 Pi 服务和 Docker 状态，再看具体应用。",
-      entry: pi?.entry || dns?.entry || "http://192.168.10.5:9999",
+      entry: pi?.entry || dns?.entry,
       evidence: evidence(pi, dns, wan)
     };
   }
@@ -331,7 +331,7 @@ function buildHomeIncident(state: State): HomeIncident {
     title: "当前网络正常",
     summary: "国内直连、代理路径、Pi 服务、卧室 WRT 都没有发现会阻断上网的异常。",
     action: "不用处理。某个 App 慢时再去分流或 Mihomo 切换节点。",
-    entry: "http://192.168.10.5:9999",
+    entry: undefined,
     evidence: evidence(wan, domestic, google, room)
   };
 }
@@ -476,12 +476,9 @@ function HomeView({ state }: { state: State }) {
   const incident = buildHomeIncident(state);
   const entries = state.console?.entries || [];
   const entryMap = new Map(entries.map((entry) => [entry.id || entry.name || entry.label, entry]));
-  const quickEntries = [
-    entryMap.get("openwrt-luci") || { id: "openwrt-luci", label: "主路由", role: "WAN / Wi-Fi", local_href: "http://192.168.10.1/cgi-bin/luci", status: "ok" },
-    entryMap.get("mihomo") || { id: "mihomo", label: "Mihomo", role: "代理节点", local_href: "http://192.168.10.5:9090/ui/#/proxies", status: "ok" },
-    entryMap.get("homenet-ops") || { id: "homenet-ops", label: "Ops", role: "当前页面", local_href: "http://192.168.10.5:9999", status: "ok" },
-    entryMap.get("home-assistant") || { id: "home-assistant", label: "Home Assistant", role: "智能家居", local_href: "http://192.168.10.5:8123", status: "ok" }
-  ];
+  const quickEntries = ["openwrt-luci", "mihomo", "homenet-ops", "home-assistant"]
+    .map((id) => entryMap.get(id))
+    .filter((entry): entry is ConsoleEntry => Boolean(entry));
   const rescue = (state.console?.layers || []).find((layer) => layer.id === "rescue-path");
 
   return (

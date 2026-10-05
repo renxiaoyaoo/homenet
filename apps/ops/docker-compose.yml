@@ -10,7 +10,7 @@ services:
       OPENWRT_USER: root
       HOMENET_SERVER_IP: ${HOMENET_SERVER_IP:-192.168.50.5}
       ROOM_AP_IP: ${ROOM_AP_IP:-192.168.50.2}
-      ROOM_AP_LOCAL_IP: ${ROOM_AP_LOCAL_IP:-192.168.1.1}
+      ROOM_AP_LOCAL_IP: ${ROOM_AP_LOCAL_IP:-192.168.51.1}
       OPENWRT_WAN_INTERFACE: ${OPENWRT_WAN_INTERFACE:-wan}
       MIHOMO_URL: http://127.0.0.1:9090
       MIHOMO_CONFIG: /mihomo-config.yaml
@@ -26,6 +26,11 @@ services:
       NETWORK_DIAGNOSTICS_INTERVAL: ${NETWORK_DIAGNOSTICS_INTERVAL:-300}
       REFRESH: ${REFRESH:-60}
       PORT: 9999
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - /home/pi/.ssh:/root/.ssh:ro
       - ${HOMENET_WORKSPACE:-/home/pi/network}/apps/ops/app.py:/app/app.py:ro

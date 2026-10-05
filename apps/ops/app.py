@@ -15,7 +15,7 @@ from aiohttp import web
 INSTANCE_DIR = Path(os.getenv("HOMENET_INSTANCE_DIR", "/homenet-instance")).resolve()
 HOMENET_TOOL = Path(os.getenv("HOMENET_TOOL", "/tools/homenet.py")).resolve()
 MIHOMO_URL = os.getenv("MIHOMO_URL", "http://127.0.0.1:9090").rstrip("/")
-MIHOMO_HTTP_PROXY = os.getenv("MIHOMO_HTTP_PROXY", "http://192.168.10.5:7890")
+MIHOMO_HTTP_PROXY = os.getenv("MIHOMO_HTTP_PROXY", "http://127.0.0.1:7890")
 MIHOMO_CONFIG = os.getenv("MIHOMO_CONFIG", "/mihomo-config.yaml")
 MIHOMO_RUNTIME_CONFIG = os.getenv("MIHOMO_RUNTIME_CONFIG", "/root/.config/mihomo/config.yaml")
 MIHOMO_CONFIG_WRITE = Path(os.getenv("MIHOMO_CONFIG_WRITE", "/mihomo-config/config.yaml")).resolve()
@@ -28,7 +28,8 @@ PORT = int(os.getenv("PORT", "9999"))
 OPENWRT_HOST = os.getenv("OPENWRT_HOST", "192.168.50.1")
 OPENWRT_USER = os.getenv("OPENWRT_USER", "root")
 ROOM_AP_IP = os.getenv("ROOM_AP_IP", "192.168.50.2")
-ROOM_AP_LOCAL_IP = os.getenv("ROOM_AP_LOCAL_IP", "192.168.1.1")
+ROOM_AP_LOCAL_IP = os.getenv("ROOM_AP_LOCAL_IP", "192.168.51.1")
+HOMENET_SERVER_IP = os.getenv("HOMENET_SERVER_IP", "127.0.0.1")
 OPENWRT_WAN_INTERFACE = os.getenv("OPENWRT_WAN_INTERFACE", "wan")
 
 STATE: dict[str, Any] = {
@@ -103,6 +104,13 @@ def instance_from_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         "devices": metadata.get("devices") or [],
         "services": metadata.get("service_directory") or [],
     }
+
+
+def service_local_url(metadata: dict[str, Any], service_id: str) -> str:
+    for service in metadata.get("service_directory") or []:
+        if isinstance(service, dict) and service.get("id") == service_id:
+            return str(service.get("local_url") or "")
+    return ""
 
 
 def instance_device_details() -> dict[str, dict[str, Any]]:
@@ -575,12 +583,12 @@ def parse_dnsmasq_check(text: str) -> dict[str, Any]:
 def parse_wifi_errors(text: str) -> dict[str, Any]:
     events = [line.strip() for line in text.splitlines() if line.strip()]
     if not events:
-        return check("wifi-errors", "近期无线错误", "ok", "最近 300 条路由日志未见关键无线失败。")
+        return check("wifi-errors", "近期无线错误", "ok", "当前路由日志未见关键无线失败。")
     return check(
         "wifi-errors",
         "近期无线错误",
         "warn",
-        f"最近 300 条路由日志发现 {len(events)} 条关键无线失败。",
+        f"当前路由日志发现 {len(events)} 条关键无线失败。",
         "先查看 OpenWrt 系统日志；若反复出现 group key handshake failure，再检查 AP 和客户端兼容性。",
     )
 
@@ -717,7 +725,7 @@ async def probe_devices(metadata: dict[str, Any]) -> dict[str, Any]:
             status = "ok"
             detail = "在线，本机运行环境"
             evidence.append("local")
-        elif ip == "192.168.10.5" or device_id == "raspberrypi":
+        elif ip == HOMENET_SERVER_IP or device_id == "raspberrypi":
             status = "ok"
             detail = "在线，Console 正在此设备运行"
             if "local-runtime" not in evidence:
@@ -827,7 +835,9 @@ async def probe_foundation_checks(metadata: dict[str, Any]) -> dict[str, Any]:
         "(/etc/init.d/dnsmasq enabled >/dev/null 2>&1 && echo enabled || echo disabled); "
         "/etc/init.d/dnsmasq status 2>/dev/null || true; "
         "echo __WIFI_ERRORS__; "
-        "logread 2>/dev/null | tail -n 300 | grep -E 'group key handshake failed|GROUP_KEY_HANDSHAKE_TIMEOUT|retry_setup_failed|Failed to start hostapd' | tail -n 10 || true; "
+        "logread 2>/dev/null | grep -E 'group key handshake failed|GROUP_KEY_HANDSHAKE_TIMEOUT|retry_setup_failed|Failed to start hostapd' | tail -n 20 || true; "
+        "echo __IPV6_POLICY__; "
+        "ip -6 rule 2>/dev/null | grep 'fwmark.*lookup 100' || true; "
         "echo __ROOM__; "
         f"ping -c 1 -W 1 {ROOM_AP_IP} >/dev/null 2>&1 && echo up || echo down"
     )
@@ -850,7 +860,8 @@ async def probe_foundation_checks(metadata: dict[str, Any]) -> dict[str, Any]:
     radio_text = extract_block(text, "__RADIO1__", "__WIRELESS__")
     wireless_text = extract_block(text, "__WIRELESS__", "__DNSMASQ__")
     dnsmasq_text = extract_block(text, "__DNSMASQ__", "__WIFI_ERRORS__")
-    wifi_errors_text = extract_block(text, "__WIFI_ERRORS__", "__ROOM__")
+    wifi_errors_text = extract_block(text, "__WIFI_ERRORS__", "__IPV6_POLICY__")
+    ipv6_policy_text = extract_block(text, "__IPV6_POLICY__", "__ROOM__")
     room_text = extract_block(text, "__ROOM__")
 
     checks.append(parse_wan_check(wan_text))
@@ -858,6 +869,13 @@ async def probe_foundation_checks(metadata: dict[str, Any]) -> dict[str, Any]:
     checks.append(parse_radio_check(radio0_text, "radio0", "主路由 2.4G radio", "IoT、Ops 或部分设备异常时，先看 2.4G radio。"))
     checks.append(parse_radio_check(radio_text, "radio1", "主路由 5G radio", "5G 异常时，先重启无线或查看 OpenWrt wireless 日志。"))
     checks.append(parse_wifi_errors(wifi_errors_text))
+    checks.append(check(
+        "ipv6-native-route",
+        "IPv6 原生直连",
+        "bad" if ipv6_policy_text.strip() else "ok",
+        "检测到遗留 IPv6 fwmark 规则。" if ipv6_policy_text.strip() else "真实 IPv6 不经过旁路 TProxy；国外域名继续使用 Fake-IP 代理。",
+        "运行主路由 mihomo-policy-on 清理遗留 IPv6 策略路由。",
+    ))
 
     for wifi_key, ssid, band, purpose in expected_wifi_items(metadata):
         title = {
@@ -963,6 +981,7 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
         "echo __MAIN_5G__; iw dev wlan1 station dump 2>/dev/null || true; "
         "echo __RELAY__; iw dev wlan1-1 station dump 2>/dev/null || true"
     )
+    mihomo_entry = service_local_url(metadata, "mihomo")
     try:
         text = await run_text_command(router_ssh_args(command), timeout=12)
         cn = parse_ping_summary(extract_block(text, "__PING_CN__", "__PING_CF__"))
@@ -999,7 +1018,7 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
             signal = relay_stations[0].get("signal")
             checks.append(check("wifi-room-backhaul", "卧室回程质量", "ok", f"WRT Room 当前 {signal}dBm，回程连接正常。"))
         else:
-            checks.append(check("wifi-room-backhaul", "卧室回程质量", "warn", "未读取到 WRT Room 回程客户端。", "确认 RX-Relay-5G 关联状态。"))
+            checks.append(check("wifi-room-backhaul", "卧室回程质量", "warn", "未读取到 WRT Room 回程客户端。", "确认实例声明的无线回程已关联。"))
     except Exception as exc:
         checks.append(check("router-speed-probe", "路由侧测速证据", "warn", f"{type(exc).__name__}: {exc}", "主路由 SSH 探测失败时先确认 OpenWrt 可达。"))
 
@@ -1019,7 +1038,7 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
         group_text = ", ".join(f"{item['name']}={item.get('now')}" for item in mihomo.get("groups", [])[:5])
         conn_count = int(mihomo.get("connections") or 0)
         status = "warn" if conn_count >= 300 else "ok"
-        checks.append(check("mihomo-current", "Mihomo 当前出口", status, f"{group_text}; connections={conn_count}", "外网慢时先看 PROXY/PROXY-JAPAN/AI-AUTO 当前选中节点。", "http://192.168.10.5:9090/ui/#/proxies"))
+        checks.append(check("mihomo-current", "Mihomo 当前出口", status, f"{group_text}; connections={conn_count}", "外网慢时先看 PROXY/PROXY-JAPAN/AI-AUTO 当前选中节点。", mihomo_entry))
         if APPLE_HOME_HUB_IP:
             apns = [
                 row for row in mihomo.get("apple_home_hub", [])
@@ -1035,7 +1054,7 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
             else:
                 checks.append(check("apple-home-hub-apns", "Apple 家庭中枢远程链路", "warn", "当前未发现 Apple TV 的 APNs 长连接。", "确认 Apple TV 已开机联网，并在家庭 App 的“家庭中枢与桥接器”中显示已连接。"))
     except Exception as exc:
-        checks.append(check("mihomo-current", "Mihomo 当前出口", "warn", f"{type(exc).__name__}", "无法读取控制器时进入 Mihomo Dashboard。", "http://192.168.10.5:9090/ui/#/proxies"))
+        checks.append(check("mihomo-current", "Mihomo 当前出口", "warn", f"{type(exc).__name__}", "无法读取控制器时进入 Mihomo Dashboard。", mihomo_entry))
 
     by_id = {item.get("id"): item for item in checks}
     domestic_ok = str((by_id.get("wan-domestic") or {}).get("status")) == "ok" and str((by_id.get("http-domestic") or {}).get("status")) == "ok"
@@ -1071,7 +1090,7 @@ async def probe_network_diagnostics(metadata: dict[str, Any]) -> dict[str, Any]:
         verdict_status = "ok"
     if mihomo_detail and verdict_status != "ok":
         detail += f" 当前出口：{mihomo_detail}"
-    checks.insert(0, check("network-verdict", verdict_title, verdict_status, detail, next_action, "http://192.168.10.5:9090/ui/#/proxies" if foreign_bad else ""))
+    checks.insert(0, check("network-verdict", verdict_title, verdict_status, detail, next_action, mihomo_entry if foreign_bad else ""))
     return {
         "ok": not any(item.get("status") in {"bad", "down", "warn"} for item in checks),
         "updated_at": time.time(),
@@ -1162,6 +1181,7 @@ def network_diagnostics_stale() -> bool:
 
 
 async def refresh_state(probe_network: bool = True) -> None:
+    STATE["errors"] = []
     try:
         metadata = await load_metadata()
         services, ports = await probe_services(metadata)

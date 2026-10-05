@@ -16,7 +16,7 @@ ip6tables -t mangle -X MIHOMO6 2>/dev/null || true
 while ip rule del fwmark "$MARK" table "$TABLE" 2>/dev/null; do :; done
 while ip -6 rule del fwmark "$MARK" table "$TABLE" 2>/dev/null; do :; done
 ip route flush table "$TABLE" 2>/dev/null || true
-ip -6 route flush table "$TABLE" 2>/dev/null || true
+while ip -6 route del default table "$TABLE" 2>/dev/null; do :; done
 
 ipset flush MIHOMO_CN4 2>/dev/null || true
 ipset destroy MIHOMO_CN4 2>/dev/null || true

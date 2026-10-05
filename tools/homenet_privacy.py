@@ -56,7 +56,10 @@ def privacy_public_roots() -> list[Path]:
         ROOT / "schemas",
         ROOT / "docs",
         ROOT / "templates",
+        ROOT / "tests",
         ROOT / "ops",
+        ROOT / "apps" / "ops",
+        ROOT / "maintenance",
         ROOT / "instances" / "example-openwrt-pi",
         ROOT / "instances" / "example-openwrt-only",
     ]
@@ -84,7 +87,6 @@ def privacy_skip_path(path: Path) -> bool:
         "mihomo/ui/",
         "maintenance/state/",
         "maintenance/backups/",
-        "maintenance/mihomo/mihomo-update.env",
         "apps/ops/frontend/node_modules/",
         "apps/ops/frontend/dist/",
         "apps/ops/static/",
@@ -214,6 +216,8 @@ def scan_privacy_file(path: Path, *, scope: str, extra_patterns: list[tuple[str,
             if not pattern.search(line):
                 continue
             if risk not in {"private-domain", "email-address", "mainland-phone-number"} and privacy_line_allowed(line):
+                continue
+            if scope == "instance" and risk == "private-instance-marker":
                 continue
             if scope == "instance" and risk in {"private-domain", "email-address", "mainland-phone-number"}:
                 continue

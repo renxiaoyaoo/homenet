@@ -23,7 +23,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies
-        run: python -m pip install --upgrade pyyaml
+        run: python -m pip install --upgrade -r apps/ops/requirements.txt
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -41,6 +41,9 @@ jobs:
 
       - name: Compile Python
         run: python -m compileall -q tools apps/ops
+
+      - name: Test core diagnostics
+        run: python -m unittest discover -s tests -v
 
       - name: Public privacy scan
         run: ./homenet privacy --scope public --format json

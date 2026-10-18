@@ -20,7 +20,7 @@ PRIVACY_ALLOW_RE = re.compile(
 )
 PRIVACY_PATTERNS: list[tuple[str, str, re.Pattern[str]]] = [
     ("high", "private-key-block", re.compile(r"BEGIN (OPENSSH|RSA|EC|DSA|PRIVATE) PRIVATE KEY")),
-    ("high", "cloudflare-token", re.compile(r"\bcfat_[A-Za-z0-9_-]{20,}\b")),
+    ("high", "cloudflare-token", re.compile(r"\bcf(?:at|ut)_[A-Za-z0-9_-]{20,}\b")),
     ("high", "jwt-like-token", re.compile(r"\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b")),
     ("high", "proxy-subscription-url", re.compile(r"https?://[^\s\"']*(sub|subscribe|subscription|config)[^\s\"']*(token|api|key|secret)=[^\s\"']+", re.IGNORECASE)),
     ("high", "secret-env-assignment", re.compile(r"^\s*[A-Z0-9_]*(PASSWORD|PASSWD|TOKEN|SECRET|PRIVATE_KEY|SUBSCRIPTION|COOKIE|SESSION)[A-Z0-9_]*\s*=\s*['\"]?[^'\"\s#]+", re.IGNORECASE)),

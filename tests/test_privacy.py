@@ -35,6 +35,16 @@ class PrivacyCoverageTest(unittest.TestCase):
             )
         self.assertEqual(findings, [])
 
+    def test_cloudflare_account_and_user_tokens_are_detected(self) -> None:
+        for token_type in ("at", "ut"):
+            token = "cf" + token_type + "_" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+            with self.subTest(token_type=token_type), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "config.txt"
+                path.write_text(f"token={token}\n", encoding="utf-8")
+                findings = scan_privacy_file(path, scope="public")
+                self.assertEqual(len(findings), 1)
+                self.assertEqual(findings[0]["risk"], "cloudflare-token")
+
 
 if __name__ == "__main__":
     unittest.main()

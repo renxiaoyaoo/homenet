@@ -16,6 +16,12 @@ LOCK_FILE="${STATE_DIR}/update.lock"
 CHECK_ONLY=0
 FORCE_RELOAD=0
 
+cleanup() {
+  rm -f "${TMP}" "${GEOSITE}.download"
+}
+
+trap cleanup EXIT
+
 if [[ -f "${ENV_FILE}" ]]; then
   # shellcheck disable=SC1090
   source "${ENV_FILE}"
@@ -91,7 +97,15 @@ if [[ "${CHECK_ONLY}" == "1" && -s "${ETAG_FILE}" ]]; then
   curl_args+=(-H "If-None-Match: $(cat "${ETAG_FILE}")")
 fi
 
-status="$(curl -w '%{http_code}' "${curl_args[@]}" "${CONFIG_URL}")"
+if ! status="$(curl -w '%{http_code}' "${curl_args[@]}" "${CONFIG_URL}")"; then
+  if [[ -s "${TARGET}" ]]; then
+    echo "mihomo config check failed, keeping existing config" >&2
+    exit 0
+  fi
+
+  echo "mihomo config download failed and no existing config is available" >&2
+  exit 1
+fi
 
 if [[ "${status}" == "304" ]]; then
   rm -f "${TMP}"
@@ -137,7 +151,14 @@ if ! docker-compose -f "${ROOT_DIR}/docker-compose.yml" exec -T mihomo /mihomo -
   exit 1
 fi
 
-reload_mihomo
+if ! reload_mihomo; then
+  mv "${BACKUP}" "${TARGET}"
+  reload_mihomo || true
+  echo "mihomo reload failed, restored previous config" >&2
+  exit 1
+fi
+
+rm -f "${BACKUP}"
 
 if [[ -n "${etag}" ]]; then
   printf '%s\n' "${etag}" > "${ETAG_FILE}"

@@ -30,6 +30,33 @@ class ConsoleDiagnosticsTest(unittest.TestCase):
             asyncio.run(app.refresh_state())
         self.assertEqual(app.STATE["errors"], [])
 
+    def test_dynamic_device_is_matched_by_mac(self) -> None:
+        metadata = {
+            "devices": [{
+                "id": "phone",
+                "name": "Phone",
+                "macs": ["02:00:00:00:00:01"],
+                "presence": "optional",
+            }]
+        }
+        router_output = "\n".join([
+            "__LEASES__",
+            "9999999999 02:00:00:00:00:01 192.0.2.216 iPhone *",
+            "__NEIGH__",
+            "192.0.2.216 dev br-lan lladdr 02:00:00:00:00:01 REACHABLE",
+        ])
+        with (
+            patch.object(app, "instance_device_details", return_value={}),
+            patch.object(app, "run_text_command", AsyncMock(return_value=router_output)),
+        ):
+            result = asyncio.run(app.probe_devices(metadata))
+
+        self.assertEqual(result["summary"]["unknown_count"], 0)
+        self.assertEqual(len(result["items"]), 1)
+        self.assertEqual(result["items"][0]["id"], "phone")
+        self.assertEqual(result["items"][0]["ip"], "192.0.2.216")
+        self.assertEqual(result["items"][0]["status"], "ok")
+
 
 if __name__ == "__main__":
     unittest.main()

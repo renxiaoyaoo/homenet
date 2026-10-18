@@ -10,6 +10,23 @@
 - `wifi-radio1-guard.sh`：主路由 5G radio1 启动失败后的重试。开机 45 秒后才检查；仅在 radio1 未起来时执行 `wifi up radio1`，两次尝试至少间隔 3 分钟，不重启已在线的无线。线上安装位置是 `/root/wifi-radio1-guard.sh`，cron 每分钟运行一次。
 - `presence-report.sh`：OpenWrt / WRT Room presence 上报脚本。线上 cron 每 2 分钟运行一次，减少日志噪声，同时保留“谁在家、连在哪个 AP”的日常判断。
 
+## NSS / ECM
+
+旧 QSDK 构建不能对所有设备套用同一 ECM 设置，应按设备角色验证：
+
+- 带 PPPoE、策略路由和透明代理的网关保持 ECM 未加载，避免复杂流量进入
+  旧版连接加速路径。代价是高吞吐 NAT 时 CPU 占用上升。
+- 使用 QSDK 无线 STA 回程的中继设备保留 ECM 和 NSS redirect。关闭后若日志
+  持续出现 `wlan1: NSS TX failed`，应立即恢复 `qca-nss-ecm`。
+
+检查：
+
+```sh
+test -d /sys/module/ecm && echo loaded || echo disabled
+cat /proc/sys/dev/nss/general/redirect 2>/dev/null
+logread | grep 'NSS TX failed' | tail
+```
+
 ## 主路由 5G 自愈
 
 线上 cron：

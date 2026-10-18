@@ -685,21 +685,20 @@ async def probe_devices(metadata: dict[str, Any]) -> dict[str, Any]:
     rows = []
     seen_ips: set[str] = set()
     for device in devices:
-        ip = str(device.get("ip") or "")
-        if not ip:
-            continue
+        declared_ip = str(device.get("ip") or "")
         expected_macs = {normalize_mac(mac) for mac in device.get("macs") or []}
         expected_hosts = {str(host).strip().lower() for host in device.get("hostnames") or [] if str(host).strip()}
-        lease = leases.get(ip) or {}
+        lease = leases.get(declared_ip) or {}
         if not lease:
             lease = next((leases_by_mac[mac] for mac in expected_macs if mac in leases_by_mac), {})
         if not lease:
             lease = next((leases_by_hostname[host] for host in expected_hosts if host in leases_by_hostname), {})
-        current_ip = str(lease.get("ip") or ip)
-        seen_ips.add(ip)
+        current_ip = str(lease.get("ip") or declared_ip)
+        if declared_ip:
+            seen_ips.add(declared_ip)
         if current_ip:
             seen_ips.add(current_ip)
-        neighbor = neighbors.get(current_ip) or neighbors.get(ip) or {}
+        neighbor = neighbors.get(current_ip) or neighbors.get(declared_ip) or {}
         lease_mac = normalize_mac(str(lease.get("mac") or ""))
         neighbor_mac = normalize_mac(str(neighbor.get("mac") or ""))
         current_mac = neighbor_mac or lease_mac
@@ -716,16 +715,16 @@ async def probe_devices(metadata: dict[str, Any]) -> dict[str, Any]:
         device_id = str(device.get("id") or "")
         presence = str(device.get("presence") or "")
         expected = bool(device.get("expected", True))
-        if ip == OPENWRT_HOST or device_id == "openwrt-gateway":
+        if declared_ip == OPENWRT_HOST or device_id == "openwrt-gateway":
             status = "ok"
             detail = "在线，主路由基础探测已通过"
             if "router-probe" not in evidence:
                 evidence.append("router-probe")
-        elif ip in {"127.0.0.1", "localhost"}:
+        elif declared_ip in {"127.0.0.1", "localhost"}:
             status = "ok"
             detail = "在线，本机运行环境"
             evidence.append("local")
-        elif ip == HOMENET_SERVER_IP or device_id == "raspberrypi":
+        elif declared_ip == HOMENET_SERVER_IP or device_id == "raspberrypi":
             status = "ok"
             detail = "在线，Console 正在此设备运行"
             if "local-runtime" not in evidence:
@@ -738,10 +737,10 @@ async def probe_devices(metadata: dict[str, Any]) -> dict[str, Any]:
         elif via_room:
             status = "ok"
             detail = "在线，经 WRT Room 中继/proxy ARP"
-            if current_ip and current_ip != ip:
+            if declared_ip and current_ip and current_ip != declared_ip:
                 status = "warn"
                 detail = f"在线，经 WRT Room 中继/proxy ARP，当前 IP 为 {current_ip}"
-        elif lease_matches and current_ip and current_ip != ip:
+        elif declared_ip and lease_matches and current_ip and current_ip != declared_ip:
             status = "warn"
             detail = f"在线，当前 IP 为 {current_ip}，等待重新获取固定地址"
         elif neighbor_matches or lease_matches:
@@ -767,7 +766,7 @@ async def probe_devices(metadata: dict[str, Any]) -> dict[str, Any]:
             "name": device.get("name") or device.get("id"),
             "role": device.get("role") or "",
             "network": device.get("network") or "",
-            "ip": ip,
+            "ip": declared_ip or current_ip,
             "current_ip": current_ip,
             "expected": expected,
             "presence": presence,
@@ -807,6 +806,7 @@ async def probe_devices(metadata: dict[str, Any]) -> dict[str, Any]:
             "via_room_relay": False,
         })
 
+    unknown_rows = [row for row in rows if str(row.get("id") or "").startswith("unknown-")]
     return {
         "ok": probe_ok,
         "updated_at": time.time(),
@@ -815,6 +815,10 @@ async def probe_devices(metadata: dict[str, Any]) -> dict[str, Any]:
             "online": sum(1 for row in rows if row["status"] == "ok"),
             "attention": sum(1 for row in rows if row["status"] in {"warn", "offline"}),
             "standby": sum(1 for row in rows if row["status"] in {"sleeping", "tracked"}),
+            "unknown_count": len(unknown_rows),
+            "unknown_names": [
+                str(row.get("name") or "未知设备") for row in unknown_rows
+            ],
         },
         "items": sorted(rows, key=lambda row: ip_sort_key(str(row.get("ip") or ""))),
     }

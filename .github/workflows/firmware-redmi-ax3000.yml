@@ -24,7 +24,9 @@ jobs:
           base="https://github.com/${UPSTREAM_REPOSITORY}/releases/download/${UPSTREAM_TAG}"
           curl -fL --retry 3 -o "${IMAGEBUILDER}" "${base}/${IMAGEBUILDER}"
           curl -fL --retry 3 -o sha256sums "${base}/sha256sums"
-          grep " ${IMAGEBUILDER}$" sha256sums | sha256sum -c -
+          expected="$(awk -v name="*${IMAGEBUILDER}" '$2 == name { print $1 }' sha256sums)"
+          test -n "${expected}"
+          printf '%s  %s\n' "${expected}" "${IMAGEBUILDER}" | sha256sum -c -
 
       - name: Build image
         shell: bash

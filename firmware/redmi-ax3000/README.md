@@ -8,11 +8,13 @@ The stable track is pinned to the QSDK release already validated on Redmi AX3000
 
 Run the `Redmi AX3000 firmware` workflow manually. The workflow:
 
-1. Downloads the pinned ImageBuilder and upstream checksums.
-2. Verifies the ImageBuilder before extraction.
-3. Builds only the `redmi_ax3000` profile.
+1. Checks out the upstream source at the pinned commit.
+2. Installs and records the upstream feeds.
+3. Applies the reviewed `stable.config` and builds only the `redmi_ax3000` profile.
 4. Adds `wpad-wolfssl` and `usteer` and removes `wpad-basic-wolfssl`.
-5. Publishes the factory image, manifest, and SHA256 file as a workflow artifact.
+5. Verifies the manifest and publishes the factory image, manifest, build metadata, and SHA256 file as a workflow artifact.
+
+The full source build is intentional. The upstream ImageBuilder feed omits several device-only Qualcomm firmware packages and cannot safely rebuild this profile.
 
 The image contains no SSID, password, IP address, domain, token, or HomeNet instance data. Apply site-specific settings after installation.
 

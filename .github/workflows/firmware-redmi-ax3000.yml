@@ -76,7 +76,7 @@ jobs:
 
       - name: Build firmware
         working-directory: openwrt
-        run: make -j"$(nproc)" IGNORE_ERRORS=1
+        run: make -j"$(nproc)"
 
       - name: Verify and collect artifacts
         shell: bash

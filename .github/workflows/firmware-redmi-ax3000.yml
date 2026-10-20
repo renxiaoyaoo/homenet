@@ -9,7 +9,7 @@ permissions:
 jobs:
   stable:
     name: Build stable QSDK image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Free disk space
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android

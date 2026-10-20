@@ -6,7 +6,7 @@ This optional build keeps firmware reproducible without mixing a home's private 
 
 The stable track is pinned to the QSDK release already validated on Redmi AX3000 and Xiaomi CR880x hardware. It keeps the existing wireless and NSS drivers while replacing `wpad-basic-wolfssl` with `wpad-wolfssl` and adding `usteer`.
 
-Run the `Redmi AX3000 firmware` workflow manually. The workflow:
+Run the `Redmi AX3000 firmware` workflow manually and select the `stable` track. The workflow:
 
 1. Checks out the upstream source at the pinned commit.
 2. Installs and records the upstream feeds.
@@ -26,4 +26,17 @@ The image contains no SSID, password, IP address, domain, token, or HomeNet inst
 - Do not move to the mainline 5.15 track until its Wi-Fi/BDF behavior has been tested for the exact hardware revision.
 - Recovery that changes NAND slots requires physical access, TFTP/U-Boot, or a previously verified dual-slot procedure.
 
-The stable track remains intentionally conservative. A newer kernel can be added as a separate candidate track without replacing this known-good build.
+The stable track remains intentionally conservative. Candidate builds never replace it automatically.
+
+## Candidate Track
+
+The candidate track is pinned separately to the upstream OpenWrt 23.05 / Linux 5.15 development branch. It uses the same full `wpad-wolfssl` and `usteer` package policy, but intentionally excludes QSDK NSS packages that the mainline branch does not support.
+
+Select `candidate` only to build an image for a non-critical test router. The upstream status currently reports working boot, switch, CPU Ethernet, and Wi-Fi for Redmi AX3000, with these constraints:
+
+- No NSS NAT or Wi-Fi offload.
+- 5 GHz DFS channels can take about one minute to appear.
+- Wireless station plus AP backhaul must be tested before promotion.
+- A successful boot is not enough; LAN access, backhaul, both radios, DHCP pass-through, roaming, and reboot recovery must all pass.
+
+The platform upgrade code writes the inactive rootfs and retains the previous slot. This protects against a boot failure, but a temporary network-aware rollback check is still required when first testing a candidate on a wireless-only AP.

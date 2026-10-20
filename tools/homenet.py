@@ -32,7 +32,7 @@ from tools.homenet_privacy import build_privacy_report, print_privacy_markdown
 from tools.homenet_routing import command_routing
 
 VERSION = "1.0.0"
-PUBLIC_DIRS = ("apps", "docs", "instances", "maintenance", "schemas", "templates", "tests", "tools", ".github")
+PUBLIC_DIRS = ("apps", "docs", "firmware", "instances", "maintenance", "schemas", "templates", "tests", "tools", ".github")
 PUBLIC_FILES = ("homenet", "README.md", "PUBLIC_PACKAGE.md", "PUBLISHING.md", "CONTRIBUTING.md", "SECURITY.md", "VERSIONING.md", "LICENSE")
 SKIP_PARTS = {".git", ".agents", ".codex", "__pycache__", "node_modules", "dist", "static", "runtime", "state", "backups"}
 SKIP_PREFIXES = ("maintenance/state/", "apps/ops/static/", "apps/ops/frontend/node_modules/")

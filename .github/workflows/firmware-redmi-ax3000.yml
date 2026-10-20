@@ -1,0 +1,51 @@
+name: Redmi AX3000 firmware
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stable:
+    name: Build stable QSDK image
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load pinned build metadata
+        run: cat firmware/redmi-ax3000/stable.env >> "$GITHUB_ENV"
+
+      - name: Download and verify ImageBuilder
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://github.com/${UPSTREAM_REPOSITORY}/releases/download/${UPSTREAM_TAG}"
+          curl -fL --retry 3 -o "${IMAGEBUILDER}" "${base}/${IMAGEBUILDER}"
+          curl -fL --retry 3 -o sha256sums "${base}/sha256sums"
+          grep " ${IMAGEBUILDER}$" sha256sums | sha256sum -c -
+
+      - name: Build image
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xf "${IMAGEBUILDER}"
+          builder="$(find . -maxdepth 1 -type d -name 'openwrt-imagebuilder-*' -print -quit)"
+          test -n "${builder}"
+          make -C "${builder}" image PROFILE="${PROFILE}" PACKAGES="${PACKAGES}"
+          mkdir -p artifact
+          find "${builder}/bin/targets" -type f \
+            \( -name '*redmi_ax3000*factory.ubi' -o -name '*redmi_ax3000*.manifest' \) \
+            -exec cp {} artifact/ \;
+          test -n "$(find artifact -type f -name '*factory.ubi' -print -quit)"
+          (cd artifact && sha256sum * > SHA256SUMS)
+          cp firmware/redmi-ax3000/stable.env artifact/BUILD-METADATA
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: redmi-ax3000-stable-${{ github.sha }}
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 14

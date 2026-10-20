@@ -55,6 +55,7 @@ def privacy_public_roots() -> list[Path]:
         ROOT / "tools",
         ROOT / "schemas",
         ROOT / "docs",
+        ROOT / "firmware",
         ROOT / "templates",
         ROOT / "tests",
         ROOT / "ops",

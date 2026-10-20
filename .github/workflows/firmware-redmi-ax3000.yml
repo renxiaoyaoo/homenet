@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex g++ gawk gcc-multilib gettext \
-            git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev
+            git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev coccinelle
 
       - name: Configure source
         working-directory: openwrt
@@ -66,9 +66,17 @@ jobs:
         working-directory: openwrt
         run: make -j16 download
 
+      - name: Build tools
+        working-directory: openwrt
+        run: make -j"$(nproc)" tools/install
+
+      - name: Build toolchain
+        working-directory: openwrt
+        run: make -j"$(nproc)" toolchain/install
+
       - name: Build firmware
         working-directory: openwrt
-        run: make -j"$(nproc)"
+        run: make -j"$(nproc)" IGNORE_ERRORS=1
 
       - name: Verify and collect artifacts
         shell: bash

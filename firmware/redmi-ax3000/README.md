@@ -10,9 +10,9 @@ Run the `Redmi AX3000 firmware` workflow manually. The workflow:
 
 1. Checks out the upstream source at the pinned commit.
 2. Installs and records the upstream feeds.
-3. Applies the reviewed `stable.config` and builds only the `redmi_ax3000` profile.
+3. Applies the reviewed `stable.config` using the upstream branch's required multi-profile build mode.
 4. Adds `wpad-wolfssl` and `usteer` and removes `wpad-basic-wolfssl`.
-5. Verifies the manifest and publishes the factory image, manifest, build metadata, and SHA256 file as a workflow artifact.
+5. Verifies and publishes only the Redmi AX3000 factory image, manifest, build metadata, and SHA256 file as a workflow artifact.
 
 The full source build is intentional. The upstream ImageBuilder feed omits several device-only Qualcomm firmware packages and cannot safely rebuild this profile.
 

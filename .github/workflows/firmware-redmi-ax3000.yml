@@ -45,10 +45,22 @@ jobs:
           ./scripts/feeds install -a
           cp ../homenet/firmware/redmi-ax3000/stable.config .config
           make defconfig
-          grep -qx 'CONFIG_TARGET_DEVICE_ipq50xx_arm_DEVICE_redmi_ax3000=y' .config
-          grep -qx 'CONFIG_PACKAGE_wpad-wolfssl=y' .config
-          grep -qx 'CONFIG_PACKAGE_usteer=y' .config
-          grep -qx '# CONFIG_PACKAGE_wpad-basic-wolfssl is not set' .config
+          grep -qx 'CONFIG_TARGET_DEVICE_ipq50xx_arm_DEVICE_redmi_ax3000=y' .config || {
+            echo 'redmi_ax3000 target was not selected' >&2
+            exit 1
+          }
+          grep -qx 'CONFIG_PACKAGE_wpad-wolfssl=y' .config || {
+            echo 'wpad-wolfssl was not selected' >&2
+            exit 1
+          }
+          grep -qx 'CONFIG_PACKAGE_usteer=y' .config || {
+            echo 'usteer was not selected' >&2
+            exit 1
+          }
+          if grep -qx 'CONFIG_PACKAGE_wpad-basic-wolfssl=y' .config; then
+            echo 'wpad-basic-wolfssl must not be selected' >&2
+            exit 1
+          fi
 
       - name: Download sources
         working-directory: openwrt

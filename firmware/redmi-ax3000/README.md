@@ -47,15 +47,3 @@ Some installations expose one combined `rootfs` instead of two rootfs MTD
 partitions. The generated image deliberately refuses in-place `sysupgrade` on
 that layout. Restoring or changing a bootloader partition table is a separate,
 physical-recovery operation and is never automated by this project.
-
-## RAM-Only Candidate Test
-
-Select `candidate-test` to build an initramfs image for `kexec` testing. It does
-not contain site credentials. The test bootstrap reads base64-encoded backhaul
-credentials and an SSH public key from the kernel command line, connects through
-5 GHz, and forces a reboot after 15 minutes. Rebooting returns to the firmware
-already installed in flash because the test does not change bootloader flags or
-write a rootfs image.
-
-Treat the bootstrap parameters as secrets even though they are temporary. Build
-artifacts and logs must never contain the command line used on a real site.

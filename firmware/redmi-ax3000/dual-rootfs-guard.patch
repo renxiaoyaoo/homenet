@@ -1,0 +1,29 @@
+--- a/target/linux/ipq50xx/base-files/lib/upgrade/mi_dualboot.sh
++++ b/target/linux/ipq50xx/base-files/lib/upgrade/mi_dualboot.sh
+@@ -16,6 +16,15 @@ mi_dualboot_check_image() {
+ 		ret=1
+ 	fi
+ 
++	local part
++	for part in rootfs rootfs_1; do
++		local index="$( find_mtd_index "${part}" )"
++		if [ -z "${index}" ] || [ ! -c "/dev/mtd${index}" ]; then
++			v "Required dual-rootfs partition is unavailable: ${part}"
++			ret=1
++		fi
++	done
++
+ 	if ! fw_printenv >/dev/null; then
+ 		v "Fail to read U-Boot env"
+ 		ret=1
+@@ -43,6 +52,10 @@ mi_dualboot_do_upgrade() {
+ 	esac
+ 
+ 	local mtdnum="$( find_mtd_index "${CI_UBIPART}" )"
++	if [ -z "${mtdnum}" ] || [ ! -c "/dev/mtd${mtdnum}" ]; then
++		v "Refusing upgrade: target partition is unavailable: ${CI_UBIPART}"
++		return 1
++	fi
+ 	v "Flashing to ${CI_UBIPART}(mtd${mtdnum})"
+ 	ubiformat "/dev/mtd${mtdnum}" -f "$1" -y || return 1
+ 	sync

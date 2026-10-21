@@ -58,6 +58,7 @@ jobs:
         working-directory: openwrt
         run: |
           set -euo pipefail
+          patch -p1 < ../homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           cp "../homenet/firmware/redmi-ax3000/${TRACK}.config" .config
@@ -112,6 +113,7 @@ jobs:
           cp openwrt/bin/targets/ipq50xx/arm/{config.buildinfo,feeds.buildinfo,version.buildinfo} artifact/
           cp "homenet/firmware/redmi-ax3000/${TRACK}.env" artifact/
           cp "homenet/firmware/redmi-ax3000/${TRACK}.config" artifact/
+          cp homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch artifact/
           (cd artifact && sha256sum * > SHA256SUMS)
 
       - name: Upload firmware artifact

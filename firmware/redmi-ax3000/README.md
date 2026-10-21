@@ -21,6 +21,8 @@ The image contains no SSID, password, IP address, domain, token, or HomeNet inst
 ## Safety Boundary
 
 - Building an image is automatic; flashing is never automatic.
+- The included dual-rootfs guard refuses `sysupgrade` unless both `rootfs` and
+  `rootfs_1` exist as usable MTD devices.
 - Keep a known-good factory image and its checksum before testing a new image.
 - Validate package compatibility on a wired-recovery gateway before changing a wireless-only AP.
 - Do not move to the mainline 5.15 track until its Wi-Fi/BDF behavior has been tested for the exact hardware revision.
@@ -40,3 +42,8 @@ Select `candidate` only to build an image for a non-critical test router. The up
 - A successful boot is not enough; LAN access, backhaul, both radios, DHCP pass-through, roaming, and reboot recovery must all pass.
 
 The platform upgrade code writes the inactive rootfs and retains the previous slot. This protects against a boot failure, but a temporary network-aware rollback check is still required when first testing a candidate on a wireless-only AP.
+
+Some installations expose one combined `rootfs` instead of two rootfs MTD
+partitions. The generated image deliberately refuses in-place `sysupgrade` on
+that layout. Restoring or changing a bootloader partition table is a separate,
+physical-recovery operation and is never automated by this project.

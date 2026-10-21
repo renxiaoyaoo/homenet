@@ -76,10 +76,16 @@ jobs:
             echo 'usteer was not selected' >&2
             exit 1
           }
-          grep -qx 'CONFIG_PACKAGE_relayd=y' .config || {
-            echo 'relayd was not selected' >&2
-            exit 1
-          }
+          if [ "${TRACK}" = candidate ]; then
+            grep -qx 'CONFIG_PACKAGE_relayd=y' .config || {
+              echo 'relayd was not selected' >&2
+              exit 1
+            }
+            grep -qx 'CONFIG_PACKAGE_watchcat=y' .config || {
+              echo 'watchcat was not selected' >&2
+              exit 1
+            }
+          fi
           if grep -qx 'CONFIG_PACKAGE_wpad-basic-wolfssl=y' .config; then
             echo 'wpad-basic-wolfssl must not be selected' >&2
             exit 1

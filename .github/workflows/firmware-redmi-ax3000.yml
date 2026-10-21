@@ -11,6 +11,7 @@ on:
         options:
           - stable
           - candidate
+          - candidate-test
 
 permissions:
   contents: read
@@ -34,10 +35,12 @@ jobs:
         run: |
           set -euo pipefail
           case "${TRACK}" in
-            stable|candidate) ;;
+            stable|candidate) source_track="${TRACK}" ;;
+            candidate-test) source_track="candidate" ;;
             *) exit 1 ;;
           esac
-          cat "homenet/firmware/redmi-ax3000/${TRACK}.env" >> "$GITHUB_ENV"
+          echo "SOURCE_TRACK=${source_track}" >> "$GITHUB_ENV"
+          cat "homenet/firmware/redmi-ax3000/${source_track}.env" >> "$GITHUB_ENV"
 
       - name: Checkout pinned upstream
         uses: actions/checkout@v4
@@ -61,7 +64,14 @@ jobs:
           patch -p1 < ../homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          cp "../homenet/firmware/redmi-ax3000/${TRACK}.config" .config
+          cp "../homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.config" .config
+          if [ "${TRACK}" = candidate-test ]; then
+            echo 'CONFIG_TARGET_ROOTFS_INITRAMFS=y' >> .config
+            cp -a ../homenet/firmware/redmi-ax3000/test-overlay/. files/
+            chmod 0755 files/etc/init.d/homenet-test-boot
+            mkdir -p files/etc/rc.d
+            ln -s ../init.d/homenet-test-boot files/etc/rc.d/S18homenet-test-boot
+          fi
           make defconfig
           grep -qx 'CONFIG_TARGET_DEVICE_ipq50xx_arm_DEVICE_redmi_ax3000=y' .config || {
             echo 'redmi_ax3000 target was not selected' >&2
@@ -75,6 +85,16 @@ jobs:
             echo 'usteer was not selected' >&2
             exit 1
           }
+          grep -qx 'CONFIG_PACKAGE_relayd=y' .config || {
+            echo 'relayd was not selected' >&2
+            exit 1
+          }
+          if [ "${TRACK}" = candidate-test ]; then
+            grep -qx 'CONFIG_TARGET_ROOTFS_INITRAMFS=y' .config || {
+              echo 'initramfs image was not selected' >&2
+              exit 1
+            }
+          fi
           if grep -qx 'CONFIG_PACKAGE_wpad-basic-wolfssl=y' .config; then
             echo 'wpad-basic-wolfssl must not be selected' >&2
             exit 1
@@ -102,7 +122,11 @@ jobs:
           set -euo pipefail
           target="openwrt/bin/targets/ipq50xx/arm"
           manifest="$(find "${target}" -type f -name '*redmi_ax3000*.manifest' -print -quit)"
-          image="$(find "${target}" -type f -name '*redmi_ax3000*factory.ubi' -print -quit)"
+          if [ "${TRACK}" = candidate-test ]; then
+            image="$(find "${target}" -type f -name '*redmi_ax3000*initramfs*' -print -quit)"
+          else
+            image="$(find "${target}" -type f -name '*redmi_ax3000*factory.ubi' -print -quit)"
+          fi
           test -n "${manifest}"
           test -n "${image}"
           grep -q '^wpad-wolfssl ' "${manifest}"
@@ -111,10 +135,18 @@ jobs:
           mkdir -p artifact
           cp "${manifest}" "${image}" artifact/
           cp openwrt/bin/targets/ipq50xx/arm/{config.buildinfo,feeds.buildinfo,version.buildinfo} artifact/
-          cp "homenet/firmware/redmi-ax3000/${TRACK}.env" artifact/
-          cp "homenet/firmware/redmi-ax3000/${TRACK}.config" artifact/
+          cp "homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.env" artifact/
+          cp "homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.config" artifact/
           cp homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch artifact/
-          (cd artifact && sha256sum * > SHA256SUMS)
+          if [ "${TRACK}" = candidate-test ]; then
+            cp -a homenet/firmware/redmi-ax3000/test-overlay artifact/
+          fi
+          (
+            cd artifact
+            find . -type f ! -name SHA256SUMS -print0 \
+              | sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4

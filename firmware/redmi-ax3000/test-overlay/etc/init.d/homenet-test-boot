@@ -1,0 +1,86 @@
+#!/bin/sh /etc/rc.common
+
+START=18
+
+cmdline_value() {
+	local name="$1"
+	local item
+	for item in $(cat /proc/cmdline); do
+		case "${item}" in
+			"${name}"=*) printf '%s' "${item#*=}"; return 0 ;;
+		esac
+	done
+	return 1
+}
+
+decode_value() {
+	printf '%s' "$1" | base64 -d
+}
+
+start() {
+	(
+		sleep 900
+		logger -t homenet-test-boot 'Test window expired; rebooting to installed firmware'
+		sync
+		reboot -f
+	) &
+
+	local ssid_b64
+	local psk_b64
+	local key_b64
+	ssid_b64="$(cmdline_value homenet_test_ssid_b64)"
+	psk_b64="$(cmdline_value homenet_test_psk_b64)"
+	key_b64="$(cmdline_value homenet_test_ssh_key_b64)"
+	if [ -z "${ssid_b64}" ] || [ -z "${psk_b64}" ] || [ -z "${key_b64}" ]; then
+		logger -t homenet-test-boot 'Missing bootstrap parameters; waiting for safety reboot'
+		return 0
+	fi
+
+	local ssid
+	local psk
+	local ssh_key
+	ssid="$(decode_value "${ssid_b64}")"
+	psk="$(decode_value "${psk_b64}")"
+	ssh_key="$(decode_value "${key_b64}")"
+	if [ -z "${ssid}" ] || [ -z "${psk}" ] || [ -z "${ssh_key}" ]; then
+		logger -t homenet-test-boot 'Invalid bootstrap parameters; waiting for safety reboot'
+		return 0
+	fi
+
+	mkdir -p /etc/dropbear
+	printf '%s\n' "${ssh_key}" > /etc/dropbear/authorized_keys
+	chmod 0600 /etc/dropbear/authorized_keys
+
+	if ! uci -q get wireless.radio1 >/dev/null; then
+		logger -t homenet-test-boot '5 GHz radio was not detected; waiting for safety reboot'
+		return 0
+	fi
+
+	uci -q delete wireless.homenet_test_backhaul
+	uci set wireless.radio1.disabled='0'
+	uci set wireless.radio1.country='CN'
+	uci set wireless.homenet_test_backhaul='wifi-iface'
+	uci set wireless.homenet_test_backhaul.device='radio1'
+	uci set wireless.homenet_test_backhaul.mode='sta'
+	uci set wireless.homenet_test_backhaul.network='homenet_test_wan'
+	uci set wireless.homenet_test_backhaul.encryption='psk2'
+	uci set wireless.homenet_test_backhaul.ssid="${ssid}"
+	uci set wireless.homenet_test_backhaul.key="${psk}"
+	uci commit wireless
+
+	uci -q delete network.homenet_test_wan
+	uci set network.homenet_test_wan='interface'
+	uci set network.homenet_test_wan.proto='dhcp'
+	uci commit network
+
+	uci -q delete firewall.homenet_test
+	uci set firewall.homenet_test='zone'
+	uci set firewall.homenet_test.name='homenet_test'
+	uci add_list firewall.homenet_test.network='homenet_test_wan'
+	uci set firewall.homenet_test.input='ACCEPT'
+	uci set firewall.homenet_test.output='ACCEPT'
+	uci set firewall.homenet_test.forward='REJECT'
+	uci commit firewall
+
+	logger -t homenet-test-boot 'Bootstrap configured; starting candidate network'
+}

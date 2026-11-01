@@ -74,10 +74,10 @@ def push_ha(state: dict) -> dict:
             "fresh_aps": fresh_aps,
             "clients": clients,
         }
-    if not fresh_aps:
+    if set(fresh_aps) != set(EXPECTED_APS):
         return {
             "posted": False,
-            "reason": "no_fresh_ap",
+            "reason": "waiting_for_fresh_aps",
             "fresh_aps": fresh_aps,
             "clients": clients,
         }

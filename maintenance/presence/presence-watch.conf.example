@@ -1,0 +1,4 @@
+AP_NAME='main'
+PRESENCE_MAC_MAP='00:00:00:00:00:01=resident_one,00:00:00:00:00:02=resident_two'
+RECEIVER='http://presence-receiver.lan:9977/report'
+INACTIVE_LIMIT_MS='120000'

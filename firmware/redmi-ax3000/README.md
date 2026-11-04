@@ -41,6 +41,12 @@ Select `candidate` only to build an image for a non-critical test router. The up
 - Wireless station plus AP backhaul must be tested before promotion.
 - A successful boot is not enough; LAN access, backhaul, both radios, DHCP pass-through, roaming, and reboot recovery must all pass.
 
+Candidate artifacts also include an initramfs FIT image. It is for a temporary
+RAM boot through U-Boot/TFTP so the exact hardware can be checked before any
+NAND partition is written. A RAM boot does not by itself make flashing safe;
+the boot command must first be proven to restore the normal boot path before
+loading the candidate.
+
 The platform upgrade code writes the inactive rootfs and retains the previous slot. This protects against a boot failure, but a temporary network-aware rollback check is still required when first testing a candidate on a wireless-only AP.
 
 Some installations expose one combined `rootfs` instead of two rootfs MTD

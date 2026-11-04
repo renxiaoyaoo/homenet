@@ -77,6 +77,10 @@ jobs:
             exit 1
           }
           if [ "${TRACK}" = candidate ]; then
+            grep -qx 'CONFIG_TARGET_ROOTFS_INITRAMFS=y' .config || {
+              echo 'candidate initramfs was not selected' >&2
+              exit 1
+            }
             grep -qx 'CONFIG_PACKAGE_relayd=y' .config || {
               echo 'relayd was not selected' >&2
               exit 1
@@ -121,6 +125,11 @@ jobs:
           ! grep -q '^wpad-basic-wolfssl ' "${manifest}"
           mkdir -p artifact
           cp "${manifest}" "${image}" artifact/
+          if [ "${TRACK}" = candidate ]; then
+            initramfs="$(find "${target}" -type f -name '*redmi_ax3000*initramfs-fit-uImage.itb' -print -quit)"
+            test -n "${initramfs}"
+            cp "${initramfs}" artifact/
+          fi
           cp openwrt/bin/targets/ipq50xx/arm/{config.buildinfo,feeds.buildinfo,version.buildinfo} artifact/
           cp "homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.env" artifact/
           cp "homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.config" artifact/

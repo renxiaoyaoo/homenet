@@ -45,6 +45,7 @@ cd homenet
 
 ```text
 apps/ops/       HomeNet Ops
+firmware/       OpenWrt firmware policy and optional device adaptations
 instances/      示例与私有家庭实例
 maintenance/    少量明确归属的维护脚本
 schemas/        instance schema
@@ -81,5 +82,6 @@ HomeNet 不用一个巨大执行器接管所有系统：
 - [架构](docs/architecture.md)
 - [部署](docs/deployment.md)
 - [维护](docs/maintenance.md)
+- [固件原则](firmware/README.md)
 - [安全](SECURITY.md)
 - [贡献](CONTRIBUTING.md)

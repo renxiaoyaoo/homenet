@@ -53,32 +53,45 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex g++ gawk gcc-multilib gettext \
-            git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev coccinelle
+            git libelf-dev libncurses-dev libssl-dev python3-dev python3-setuptools \
+            python3-pyelftools rsync swig unzip zlib1g-dev zstd libzstd-dev coccinelle
 
       - name: Configure source
         working-directory: openwrt
         run: |
           set -euo pipefail
-          patch -p1 < ../homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch
+          if [ "${TRACK}" = candidate ]; then
+            git apply ../homenet/firmware/redmi-ax3000/patches/0001-qualcommax-add-Xiaomi-CR8809-support.patch
+            mkdir -p package/firmware/ipq-wifi/files
+            bdf_base="https://raw.githubusercontent.com/${BDF_REPOSITORY}/${BDF_COMMIT}/package/firmware/ipq-wifi/src"
+            curl -fsSL --retry 3 "${bdf_base}/board-redmi_ax3000.ipq5018" \
+              -o package/firmware/ipq-wifi/files/board-redmi_ax3000.ipq5018
+            curl -fsSL --retry 3 "${bdf_base}/board-redmi_ax3000.qcn6122" \
+              -o package/firmware/ipq-wifi/files/board-redmi_ax3000.qcn6122
+            echo "${BDF_IPQ5018_SHA256}  package/firmware/ipq-wifi/files/board-redmi_ax3000.ipq5018" | sha256sum -c -
+            echo "${BDF_QCN6122_SHA256}  package/firmware/ipq-wifi/files/board-redmi_ax3000.qcn6122" | sha256sum -c -
+          else
+            patch -p1 < ../homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch
+          fi
           ./scripts/feeds update -a
           ./scripts/feeds install -a
           cp "../homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.config" .config
           make defconfig
-          grep -qx 'CONFIG_TARGET_DEVICE_ipq50xx_arm_DEVICE_redmi_ax3000=y' .config || {
-            echo 'redmi_ax3000 target was not selected' >&2
-            exit 1
-          }
-          grep -qx 'CONFIG_PACKAGE_wpad-wolfssl=y' .config || {
-            echo 'wpad-wolfssl was not selected' >&2
-            exit 1
-          }
           grep -qx 'CONFIG_PACKAGE_usteer=y' .config || {
             echo 'usteer was not selected' >&2
             exit 1
           }
           if [ "${TRACK}" = candidate ]; then
+            grep -qx 'CONFIG_TARGET_qualcommax_ipq50xx_DEVICE_xiaomi_cr8809=y' .config || {
+              echo 'xiaomi_cr8809 target was not selected' >&2
+              exit 1
+            }
             grep -qx 'CONFIG_TARGET_ROOTFS_INITRAMFS=y' .config || {
               echo 'candidate initramfs was not selected' >&2
+              exit 1
+            }
+            grep -qx 'CONFIG_PACKAGE_wpad-mbedtls=y' .config || {
+              echo 'wpad-mbedtls was not selected' >&2
               exit 1
             }
             grep -qx 'CONFIG_PACKAGE_relayd=y' .config || {
@@ -89,10 +102,23 @@ jobs:
               echo 'watchcat was not selected' >&2
               exit 1
             }
-          fi
-          if grep -qx 'CONFIG_PACKAGE_wpad-basic-wolfssl=y' .config; then
-            echo 'wpad-basic-wolfssl must not be selected' >&2
-            exit 1
+            if grep -qx 'CONFIG_PACKAGE_wpad-basic-mbedtls=y' .config; then
+              echo 'wpad-basic-mbedtls must not be selected' >&2
+              exit 1
+            fi
+          else
+            grep -qx 'CONFIG_TARGET_DEVICE_ipq50xx_arm_DEVICE_redmi_ax3000=y' .config || {
+              echo 'redmi_ax3000 target was not selected' >&2
+              exit 1
+            }
+            grep -qx 'CONFIG_PACKAGE_wpad-wolfssl=y' .config || {
+              echo 'wpad-wolfssl was not selected' >&2
+              exit 1
+            }
+            if grep -qx 'CONFIG_PACKAGE_wpad-basic-wolfssl=y' .config; then
+              echo 'wpad-basic-wolfssl must not be selected' >&2
+              exit 1
+            fi
           fi
 
       - name: Download sources
@@ -115,25 +141,38 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          target="openwrt/bin/targets/ipq50xx/arm"
-          manifest="$(find "${target}" -type f -name '*redmi_ax3000*.manifest' -print -quit)"
-          image="$(find "${target}" -type f -name '*redmi_ax3000*factory.ubi' -print -quit)"
-          test -n "${manifest}"
-          test -n "${image}"
-          grep -q '^wpad-wolfssl ' "${manifest}"
-          grep -q '^usteer ' "${manifest}"
-          ! grep -q '^wpad-basic-wolfssl ' "${manifest}"
-          mkdir -p artifact
-          cp "${manifest}" "${image}" artifact/
           if [ "${TRACK}" = candidate ]; then
-            initramfs="$(find "${target}" -type f -name '*redmi_ax3000*initramfs-fit-uImage.itb' -print -quit)"
-            test -n "${initramfs}"
-            cp "${initramfs}" artifact/
+            target="openwrt/bin/targets/qualcommax/ipq50xx"
+            pattern='*xiaomi_cr8809*'
+          else
+            target="openwrt/bin/targets/ipq50xx/arm"
+            pattern='*redmi_ax3000*'
           fi
-          cp openwrt/bin/targets/ipq50xx/arm/{config.buildinfo,feeds.buildinfo,version.buildinfo} artifact/
+          manifest="$(find "${target}" -type f -name "${pattern}.manifest" -print -quit)"
+          test -n "${manifest}"
+          grep -q '^usteer ' "${manifest}"
+          mkdir -p artifact
+          if [ "${TRACK}" = candidate ]; then
+            initramfs="$(find "${target}" -type f -name "${pattern}initramfs-uImage.itb" -print -quit)"
+            test -n "${initramfs}"
+            grep -q '^wpad-mbedtls ' "${manifest}"
+            ! grep -q '^wpad-basic-mbedtls ' "${manifest}"
+            cp "${manifest}" "${initramfs}" artifact/
+          else
+            image="$(find "${target}" -type f -name "${pattern}factory.ubi" -print -quit)"
+            test -n "${image}"
+            grep -q '^wpad-wolfssl ' "${manifest}"
+            ! grep -q '^wpad-basic-wolfssl ' "${manifest}"
+            cp "${manifest}" "${image}" artifact/
+          fi
+          cp "${target}"/{config.buildinfo,feeds.buildinfo,version.buildinfo} artifact/
           cp "homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.env" artifact/
           cp "homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.config" artifact/
-          cp homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch artifact/
+          if [ "${TRACK}" = candidate ]; then
+            cp homenet/firmware/redmi-ax3000/patches/0001-qualcommax-add-Xiaomi-CR8809-support.patch artifact/
+          else
+            cp homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch artifact/
+          fi
           (
             cd artifact
             find . -type f ! -name SHA256SUMS -print0 \

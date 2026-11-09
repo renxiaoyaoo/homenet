@@ -25,31 +25,27 @@ The image contains no SSID, password, IP address, domain, token, or HomeNet inst
   `rootfs_1` exist as usable MTD devices.
 - Keep a known-good factory image and its checksum before testing a new image.
 - Validate package compatibility on a wired-recovery gateway before changing a wireless-only AP.
-- Do not move to the mainline 5.15 track until its Wi-Fi/BDF behavior has been tested for the exact hardware revision.
+- Do not install a candidate until its Wi-Fi/BDF behavior has been tested on the exact hardware revision through initramfs.
 - Recovery that changes NAND slots requires physical access, TFTP/U-Boot, or a previously verified dual-slot procedure.
 
 The stable track remains intentionally conservative. Candidate builds never replace it automatically.
 
 ## Candidate Track
 
-The candidate track is pinned separately to the upstream OpenWrt 23.05 / Linux 5.15 development branch. It uses the same full `wpad-wolfssl` and `usteer` package policy, but intentionally excludes QSDK NSS packages that the mainline branch does not support.
+The candidate track is based on the pinned current OpenWrt stable release,
+currently OpenWrt 25.12.6 with Linux 6.12. OpenWrt supports the IPQ50xx platform
+but does not yet include CR8809 as a device, so HomeNet carries one small device
+patch and the two required board-data files with pinned source commits and
+checksums. It does not carry the old QSDK or NSS implementation.
 
-Select `candidate` only to build an image for a non-critical test router. The upstream status currently reports working boot, switch, CPU Ethernet, and Wi-Fi for Redmi AX3000, with these constraints:
+The candidate image includes the household requirements needed for evaluation:
+full `wpad-mbedtls`, `relayd`, `usteer`, `watchcat`, LuCI, and zram. Because this
+device has limited memory, free memory and Wi-Fi stability are explicit test
+criteria rather than assumptions.
 
-- No NSS NAT or Wi-Fi offload.
-- 5 GHz DFS channels can take about one minute to appear.
-- Wireless station plus AP backhaul must be tested before promotion.
-- A successful boot is not enough; LAN access, backhaul, both radios, DHCP pass-through, roaming, and reboot recovery must all pass.
-
-Candidate artifacts also include an initramfs FIT image. It is for a temporary
-RAM boot through U-Boot/TFTP so the exact hardware can be checked before any
-NAND partition is written. A RAM boot does not by itself make flashing safe;
-the boot command must first be proven to restore the normal boot path before
-loading the candidate.
-
-The platform upgrade code writes the inactive rootfs and retains the previous slot. This protects against a boot failure, but a temporary network-aware rollback check is still required when first testing a candidate on a wireless-only AP.
-
-Some installations expose one combined `rootfs` instead of two rootfs MTD
-partitions. The generated image deliberately refuses in-place `sysupgrade` on
-that layout. Restoring or changing a bootloader partition table is a separate,
-physical-recovery operation and is never automated by this project.
+Candidate artifacts publish only an initramfs FIT image. It is temporarily
+loaded through U-Boot/TFTP so boot, LAN, both radios, wireless station plus AP,
+DHCP pass-through, roaming assistance, memory pressure, and normal reboot
+recovery can be checked without writing NAND. An install image will be exposed
+only after that hardware test passes and the inactive-slot upgrade path is
+validated.

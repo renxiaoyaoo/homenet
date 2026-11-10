@@ -154,10 +154,11 @@ jobs:
           mkdir -p artifact
           if [ "${TRACK}" = candidate ]; then
             initramfs="$(find "${target}" -type f -name "${pattern}initramfs-uImage.itb" -print -quit)"
-            test -n "${initramfs}"
+            sysupgrade="$(find "${target}" -type f -name "${pattern}sysupgrade.bin" -print -quit)"
+            test -n "${initramfs}" && test -n "${sysupgrade}"
             grep -q '^wpad-mbedtls ' "${manifest}"
             ! grep -q '^wpad-basic-mbedtls ' "${manifest}"
-            cp "${manifest}" "${initramfs}" artifact/
+            cp "${manifest}" "${initramfs}" "${sysupgrade}" artifact/
           else
             image="$(find "${target}" -type f -name "${pattern}factory.ubi" -print -quit)"
             test -n "${image}"

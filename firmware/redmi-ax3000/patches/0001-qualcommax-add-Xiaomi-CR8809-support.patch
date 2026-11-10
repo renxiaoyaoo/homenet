@@ -427,7 +427,7 @@ diff --git a/target/linux/qualcommax/image/ipq50xx.mk b/target/linux/qualcommax/
 index 60348cc..ee51f83 100644
 --- a/target/linux/qualcommax/image/ipq50xx.mk
 +++ b/target/linux/qualcommax/image/ipq50xx.mk
-@@ -181,6 +181,24 @@ define Device/linksys_spnmx56
+@@ -181,6 +181,25 @@ define Device/linksys_spnmx56
  endef
  TARGET_DEVICES += linksys_spnmx56
  
@@ -444,6 +444,7 @@ index 60348cc..ee51f83 100644
 +	PAGESIZE := 2048
 +	IMAGE_SIZE := 36864k
 +	NAND_SIZE := 128m
++	SUPPORTED_DEVICES += redmi,ax3000
 +	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
 +		ipq-wifi-redmi_ax3000
 +endef

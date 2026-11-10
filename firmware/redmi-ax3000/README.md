@@ -45,9 +45,9 @@ full `wpad-mbedtls`, `relayd`, `usteer`, `watchcat`, LuCI, and zram. Because thi
 device has limited memory, free memory and Wi-Fi stability are explicit test
 criteria rather than assumptions.
 
-Candidate artifacts publish only an initramfs FIT image. It is temporarily
-loaded with `tftpboot` and `bootm` from an interactive serial U-Boot console so boot, LAN, both radios, wireless station plus AP,
-DHCP pass-through, roaming assistance, memory pressure, and normal reboot
-recovery can be checked without writing NAND. An install image will be exposed
-only after that hardware test passes and the inactive-slot upgrade path is
-validated.
+Candidate artifacts publish an initramfs FIT image and a sysupgrade image. The
+preferred first test loads initramfs with `tftpboot` and `bootm` from an
+interactive serial U-Boot console. When serial access is unavailable, do not
+flash until a known-good network recovery image is available, the bootloader
+recovery path is understood, and `sysupgrade -T` accepts the candidate. Flashing
+is always a separate manual action; the build workflow never changes a router.

@@ -26,7 +26,9 @@ The image contains no SSID, password, IP address, domain, token, or HomeNet inst
 - Keep a known-good factory image and its checksum before testing a new image.
 - Validate package compatibility on a wired-recovery gateway before changing a wireless-only AP.
 - Do not install a candidate until its Wi-Fi/BDF behavior has been tested on the exact hardware revision through initramfs.
-- Recovery that changes NAND slots requires physical access, TFTP/U-Boot, or a previously verified dual-slot procedure.
+- The factory `bootmiwifi` network recovery path writes flash and is not a RAM-test path.
+- On the tested CR8809 bootloader, changing `bootcmd` from Linux did not change the next boot path. Do not use an environment override as a substitute for an interactive U-Boot console.
+- Recovery that changes NAND slots requires physical access or a previously verified dual-slot procedure.
 
 The stable track remains intentionally conservative. Candidate builds never replace it automatically.
 
@@ -44,7 +46,7 @@ device has limited memory, free memory and Wi-Fi stability are explicit test
 criteria rather than assumptions.
 
 Candidate artifacts publish only an initramfs FIT image. It is temporarily
-loaded through U-Boot/TFTP so boot, LAN, both radios, wireless station plus AP,
+loaded with `tftpboot` and `bootm` from an interactive serial U-Boot console so boot, LAN, both radios, wireless station plus AP,
 DHCP pass-through, roaming assistance, memory pressure, and normal reboot
 recovery can be checked without writing NAND. An install image will be exposed
 only after that hardware test passes and the inactive-slot upgrade path is

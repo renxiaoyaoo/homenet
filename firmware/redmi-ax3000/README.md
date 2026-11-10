@@ -45,7 +45,8 @@ full `wpad-mbedtls`, `relayd`, `usteer`, `watchcat`, LuCI, and zram. Because thi
 device has limited memory, free memory and Wi-Fi stability are explicit test
 criteria rather than assumptions.
 
-Candidate artifacts publish an initramfs FIT image and a sysupgrade image. The
+Candidate artifacts publish an initramfs FIT image, a standard sysupgrade image,
+and a factory UBI image for older QSDK installations that only accept UBI. The
 preferred first test loads initramfs with `tftpboot` and `bootm` from an
 interactive serial U-Boot console. When serial access is unavailable, do not
 flash until a known-good network recovery image is available, the bootloader

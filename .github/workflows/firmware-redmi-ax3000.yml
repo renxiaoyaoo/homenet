@@ -155,10 +155,11 @@ jobs:
           if [ "${TRACK}" = candidate ]; then
             initramfs="$(find "${target}" -type f -name "${pattern}initramfs-uImage.itb" -print -quit)"
             sysupgrade="$(find "${target}" -type f -name "${pattern}sysupgrade.bin" -print -quit)"
-            test -n "${initramfs}" && test -n "${sysupgrade}"
+            factory="$(find "${target}" -type f -name "${pattern}factory.ubi" -print -quit)"
+            test -n "${initramfs}" && test -n "${sysupgrade}" && test -n "${factory}"
             grep -q '^wpad-mbedtls ' "${manifest}"
             ! grep -q '^wpad-basic-mbedtls ' "${manifest}"
-            cp "${manifest}" "${initramfs}" "${sysupgrade}" artifact/
+            cp "${manifest}" "${initramfs}" "${sysupgrade}" "${factory}" artifact/
           else
             image="$(find "${target}" -type f -name "${pattern}factory.ubi" -print -quit)"
             test -n "${image}"

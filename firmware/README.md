@@ -4,7 +4,8 @@ HomeNet firmware follows OpenWrt instead of becoming a separate distribution.
 Device builds must satisfy these rules:
 
 1. Use the current supported OpenWrt stable release as the source baseline.
-   Pin an exact release commit so every published image is reproducible.
+   A candidate may use a pinned OpenWrt main commit only when required device
+   support has not reached stable; it cannot be promoted until validated.
 2. Keep the device adaptation minimal. Carry only hardware support that is not
    yet available upstream, and prefer submitting that support to OpenWrt.
 3. Preserve the functions required by the deployed network: gateway or room AP
@@ -28,4 +29,3 @@ Hardware profile names, partition handling, and recovery commands are
 implementation decisions derived from the exact device. They are not fixed
 product assumptions and must be revalidated when hardware or upstream support
 changes.
-

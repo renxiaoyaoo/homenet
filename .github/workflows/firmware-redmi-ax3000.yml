@@ -26,7 +26,7 @@ jobs:
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android
 
       - name: Checkout HomeNet
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           path: homenet
 
@@ -41,7 +41,7 @@ jobs:
           cat "homenet/firmware/redmi-ax3000/${source_track}.env" >> "$GITHUB_ENV"
 
       - name: Checkout pinned upstream
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ env.UPSTREAM_REPOSITORY }}
           ref: ${{ env.UPSTREAM_COMMIT }}
@@ -61,17 +61,19 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${TRACK}" = candidate ]; then
-            git apply ../homenet/firmware/redmi-ax3000/patches/0001-qualcommax-add-Xiaomi-CR8809-support.patch
-            mkdir -p package/firmware/ipq-wifi/files
-            bdf_base="https://raw.githubusercontent.com/${BDF_REPOSITORY}/${BDF_COMMIT}/package/firmware/ipq-wifi/src"
-            curl -fsSL --retry 3 "${bdf_base}/board-redmi_ax3000.ipq5018" \
-              -o package/firmware/ipq-wifi/files/board-redmi_ax3000.ipq5018
-            curl -fsSL --retry 3 "${bdf_base}/board-redmi_ax3000.qcn6122" \
-              -o package/firmware/ipq-wifi/files/board-redmi_ax3000.qcn6122
-            echo "${BDF_IPQ5018_SHA256}  package/firmware/ipq-wifi/files/board-redmi_ax3000.ipq5018" | sha256sum -c -
-            echo "${BDF_QCN6122_SHA256}  package/firmware/ipq-wifi/files/board-redmi_ax3000.qcn6122" | sha256sum -c -
-          else
-            patch -p1 < ../homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch
+            git apply ../homenet/firmware/redmi-ax3000/patches/0001-home-net-cr8809-single-rootfs.patch
+            dts=target/linux/qualcommax/dts/ipq5018-redmi-ax3000-ubootmod.dts
+            common=target/linux/qualcommax/dts/ipq5018-cr880x.dtsi
+            upgrade=target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
+            grep -Fq 'reg = <0x00a80000 0x7480000>;' "${dts}"
+            grep -Fq 'nand-ecc-step-size = <512>;' "${common}"
+            grep -Fq 'nand-ecc-strength = <8>;' "${common}"
+            grep -Fq 'qcom,ath11k-fw-memory-mode = <2>;' "${common}"
+            grep -Fq '&tz_region' "${common}"
+            sed -n '/xiaomi,redmi-ax3000-ubootmod)/,/;;/p' "${upgrade}" > /tmp/candidate-upgrade-block
+            grep -Fq 'CI_UBIPART="rootfs"' /tmp/candidate-upgrade-block
+            ! grep -Fq 'fw_setenv' /tmp/candidate-upgrade-block
+            cp ../homenet/firmware/redmi-ax3000/candidate.feeds.conf feeds.conf
           fi
           ./scripts/feeds update -a
           ./scripts/feeds install -a
@@ -82,8 +84,8 @@ jobs:
             exit 1
           }
           if [ "${TRACK}" = candidate ]; then
-            grep -qx 'CONFIG_TARGET_qualcommax_ipq50xx_DEVICE_xiaomi_cr8809=y' .config || {
-              echo 'xiaomi_cr8809 target was not selected' >&2
+            grep -qx 'CONFIG_TARGET_qualcommax_ipq50xx_DEVICE_xiaomi_redmi-ax3000-ubootmod=y' .config || {
+              echo 'xiaomi_redmi-ax3000-ubootmod target was not selected' >&2
               exit 1
             }
             grep -qx 'CONFIG_TARGET_ROOTFS_INITRAMFS=y' .config || {
@@ -104,6 +106,10 @@ jobs:
             }
             if grep -qx 'CONFIG_PACKAGE_wpad-basic-mbedtls=y' .config; then
               echo 'wpad-basic-mbedtls must not be selected' >&2
+              exit 1
+            fi
+            if grep -Eq '^CONFIG_(PACKAGE_nss-tools-dwmac|PACKAGE_MAC80211_NSS_SUPPORT|ATH11K_NSS_SUPPORT)=y' .config; then
+              echo 'NSS acceleration must stay disabled on the room AP candidate' >&2
               exit 1
             fi
           else
@@ -143,7 +149,7 @@ jobs:
           set -euo pipefail
           if [ "${TRACK}" = candidate ]; then
             target="openwrt/bin/targets/qualcommax/ipq50xx"
-            pattern='*xiaomi_cr8809*'
+            pattern='*xiaomi_redmi-ax3000-ubootmod*'
           else
             target="openwrt/bin/targets/ipq50xx/arm"
             pattern='*redmi_ax3000*'
@@ -159,6 +165,7 @@ jobs:
             test -n "${initramfs}" && test -n "${sysupgrade}" && test -n "${factory}"
             grep -q '^wpad-mbedtls ' "${manifest}"
             ! grep -q '^wpad-basic-mbedtls ' "${manifest}"
+            ! grep -Eq '^(nss-tools-dwmac|kmod-qca-nss)' "${manifest}"
             cp "${manifest}" "${initramfs}" "${sysupgrade}" "${factory}" artifact/
           else
             image="$(find "${target}" -type f -name "${pattern}factory.ubi" -print -quit)"
@@ -171,9 +178,8 @@ jobs:
           cp "homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.env" artifact/
           cp "homenet/firmware/redmi-ax3000/${SOURCE_TRACK}.config" artifact/
           if [ "${TRACK}" = candidate ]; then
-            cp homenet/firmware/redmi-ax3000/patches/0001-qualcommax-add-Xiaomi-CR8809-support.patch artifact/
-          else
-            cp homenet/firmware/redmi-ax3000/dual-rootfs-guard.patch artifact/
+            cp homenet/firmware/redmi-ax3000/patches/0001-home-net-cr8809-single-rootfs.patch artifact/
+            cp homenet/firmware/redmi-ax3000/candidate.feeds.conf artifact/
           fi
           (
             cd artifact
@@ -183,7 +189,7 @@ jobs:
           )
 
       - name: Upload firmware artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: redmi-ax3000-${{ inputs.track }}-${{ github.sha }}
           path: artifact/

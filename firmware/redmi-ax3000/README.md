@@ -21,34 +21,41 @@ The image contains no SSID, password, IP address, domain, token, or HomeNet inst
 ## Safety Boundary
 
 - Building an image is automatic; flashing is never automatic.
-- The included dual-rootfs guard refuses `sysupgrade` unless both `rootfs` and
-  `rootfs_1` exist as usable MTD devices.
 - Keep a known-good factory image and its checksum before testing a new image.
 - Validate package compatibility on a wired-recovery gateway before changing a wireless-only AP.
-- Do not install a candidate until its Wi-Fi/BDF behavior has been tested on the exact hardware revision through initramfs.
+- Never write U-Boot, MIBIB, ART, calibration, or other boot partitions.
 - The factory `bootmiwifi` network recovery path writes flash and is not a RAM-test path.
 - On the tested CR8809 bootloader, changing `bootcmd` from Linux did not change the next boot path. Do not use an environment override as a substitute for an interactive U-Boot console.
-- Recovery that changes NAND slots requires physical access or a previously verified dual-slot procedure.
+- The deployed unit has one `rootfs` partition. Candidate builds must preserve
+  its observed offset and size and must not implement dual-slot switching.
+- Without serial U-Boot, installation is allowed only after the exact factory
+  UBI passes static checks and the known-good U-Boot Web recovery path has
+  already been exercised on the same device.
 
 The stable track remains intentionally conservative. Candidate builds never replace it automatically.
 
 ## Candidate Track
 
-The candidate track is based on the pinned current OpenWrt stable release,
-currently OpenWrt 25.12.6 with Linux 6.12. OpenWrt supports the IPQ50xx platform
-but does not yet include CR8809 as a device, so HomeNet carries one small device
-patch and the two required board-data files with pinned source commits and
-checksums. It does not carry the old QSDK or NSS implementation.
+The candidate track pins an OpenWrt-main-based hardware implementation that has
+been tested on the Redmi AX3000/CR880x family. HomeNet carries one small patch:
+it preserves the deployed CR8809's observed 127 MiB single-rootfs layout and
+prevents sysupgrade from changing Xiaomi slot flags. The mature upstream device
+implementation supplies the 8-bit NAND ECC, 256 MiB ath11k profile, TrustZone
+reservation, QCN6122 memory layout, switch topology, and board data.
+All official OpenWrt feeds are pinned to the commits used by the corresponding
+upstream release build. The optional third-party NSS feed is excluded.
 
 The candidate image includes the household requirements needed for evaluation:
 full `wpad-mbedtls`, `relayd`, `usteer`, `watchcat`, LuCI, and zram. Because this
 device has limited memory, free memory and Wi-Fi stability are explicit test
-criteria rather than assumptions.
+criteria rather than assumptions. NSS acceleration is intentionally disabled:
+the room AP does not need routing acceleration, and its weak wireless backhaul
+must stay on the conventional kernel data path.
 
 Candidate artifacts publish an initramfs FIT image, a standard sysupgrade image,
-and a factory UBI image for older QSDK installations that only accept UBI. The
-preferred first test loads initramfs with `tftpboot` and `bootm` from an
-interactive serial U-Boot console. When serial access is unavailable, do not
-flash until a known-good network recovery image is available, the bootloader
-recovery path is understood, and `sysupgrade -T` accepts the candidate. Flashing
-is always a separate manual action; the build workflow never changes a router.
+and a factory UBI image accepted by the modified U-Boot recovery page. An
+initramfs boot remains preferred when serial U-Boot is available. On the
+deployed unit it is not available, so the candidate stays blocked until its
+factory UBI, manifest, device tree, UBI volumes, package set, and checksum have
+all passed offline inspection. Flashing is a separate manual action; the build
+workflow never changes a router.
